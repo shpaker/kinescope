@@ -17,6 +17,10 @@ web/                 the lab's page for the web build
 
 Architecture and the right abstractions come first.
 
+**Scope: the screen only.** kinescope draws what the tube's glass shows — the picture and
+its flaws. No effect paints outside the picture: monitor cases, bezels, rooms and other
+surroundings belong to the game. Outside the picture the shader leaves black.
+
 - The core never imports Ebitengine or the backend. The backend never imports the lab.
 - An effect is plain data: a struct of float32 params, `Name()`, `Stage()`, `Params()`.
   GPU resources and per-frame state live only in the backend's `Renderer`.

@@ -9,6 +9,10 @@ torn lines, a shiver when the channel changes. Drawn with
 and off, move their sliders, give the set moods, drop your own screenshot on
 it, then share the setup as a link or copy it as Go.
 
+**Scope: the screen only.** kinescope draws what the tube's glass shows —
+the picture and its flaws. Whatever is around it (a monitor case, a bezel, a
+room) is the game's business; outside the picture kinescope leaves black.
+
 ## Used in
 
 - [tnk9x](https://github.com/shpaker/tnk9x) — tanks from the 90s the way we
