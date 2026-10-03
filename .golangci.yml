@@ -1,0 +1,59 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/shpaker/kinescope
+  misspell:
+    locale: US
+  # Layers: cmd -> ebitengine -> kinescope (see AGENTS.md)
+  depguard:
+    rules:
+      core:
+        files:
+          - "!**/ebitengine/**"
+          - "!**/cmd/**"
+        deny:
+          - pkg: github.com/hajimehoshi/ebiten
+            desc: the core knows no engine; drawing lives in kinescope/ebitengine
+          - pkg: github.com/shpaker/kinescope/ebitengine
+            desc: the core does not depend on its backends
+      backend:
+        files:
+          - "**/ebitengine/**"
+        deny:
+          - pkg: github.com/shpaker/kinescope/cmd
+            desc: the backend does not depend on the lab
+          - pkg: github.com/ebitengine/debugui
+            desc: the UI belongs to the lab
+      js-isolation:
+        files:
+          - "**"
+          - "!**/platform_js.go"
+        deny:
+          - pkg: syscall/js
+            desc: the browser only behind the lab's platform
+
+linters:
+  disable-all: true
+  enable:
+    - depguard
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - typecheck
+
+issues:
+  exclude-use-default: false
+  exclude-dirs:
+    - dist
+    - web
+  max-issues-per-linter: 0
+  max-same-issues: 0

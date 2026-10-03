@@ -1,0 +1,41 @@
+//kage:unit pixels
+
+// The glow prepass: picks the bright areas of image 0 and blurs them along
+// Direction. Two passes, across then down, give a round glow.
+package main
+
+// Direction is the blur's step: (1, 0) or (0, 1).
+var Direction vec2
+
+// Threshold is the brightness the glow starts at; 0 keeps everything (the
+// second pass).
+var Threshold float
+
+// GlowRadius is how far the glow spreads, in pixels, up to maxRadius.
+var GlowRadius float
+
+const maxRadius = 12
+
+func bright(c vec3) vec3 {
+	if Threshold <= 0 {
+		return c
+	}
+	luma := dot(c, vec3(0.299, 0.587, 0.114))
+	return c * (max(luma-Threshold, 0) / (1 - Threshold))
+}
+
+func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
+	sigma := GlowRadius / 2
+	sum := vec3(0)
+	total := 0.0
+	for i := -maxRadius; i <= maxRadius; i++ {
+		d := float(i)
+		if abs(d) > GlowRadius {
+			continue
+		}
+		weight := exp(-d * d / (2 * sigma * sigma))
+		sum += bright(imageSrc0At(srcPos+Direction*d).rgb) * weight
+		total += weight
+	}
+	return vec4(sum/total, 1)
+}

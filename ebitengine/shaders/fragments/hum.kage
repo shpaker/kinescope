@@ -1,0 +1,5 @@
+// hum is the mains hum: a light bar rolling slowly down the picture.
+func hum(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+	bar := fract(pos.y/size.y-Time/HumPeriod) - 0.5
+	return c * (1 + HumStrength*exp(-bar*bar*400))
+}

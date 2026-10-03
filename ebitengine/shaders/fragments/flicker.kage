@@ -1,0 +1,4 @@
+// flicker trembles the whole picture's brightness.
+func flicker(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+	return c * (1 + FlickerStrength*sin(Time*2*pi*FlickerFrequency))
+}

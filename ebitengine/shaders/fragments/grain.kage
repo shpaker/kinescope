@@ -1,0 +1,7 @@
+// grain is the signal's snow, in cells of half a frame pixel, new every
+// frame; it shows on black too.
+func grain(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+	cell := floor(pos * 2)
+	n := hash(cell+vec2(mod(Frame, 97)*13.1, mod(Frame, 89)*7.7)) - 0.5
+	return c*(1+n*GrainStrength*2) + n*GrainStrength
+}

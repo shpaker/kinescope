@@ -1,0 +1,212 @@
+//kage:unit pixels
+
+// The picture pass, composed by kinescope from its effects' fragments.
+// Image 0 is the frame (after its afterglow), image 1 the glow, the same
+// size; positions are in frame pixels from the frame's corner.
+package main
+
+// Time is the TV's clock in seconds, Frame its Updates, Scale the screen
+// pixels per frame pixel.
+var Time float
+var Frame float
+var Scale float
+
+// The effects' params
+var AfterglowDecay float
+var CurvatureX float
+var CurvatureY float
+var TearStrength float
+var TearAmplitude float
+var ConvergenceAmount float
+var GlowThreshold float
+var GlowStrength float
+var GlowRadius float
+var GlassLevel float
+var ScanlinesDepth float
+var ScanlinesMinScale float
+var ApertureMaskStrength float
+var ApertureMaskMinScale float
+var GrainStrength float
+var FlickerStrength float
+var FlickerFrequency float
+var HumStrength float
+var HumPeriod float
+var VignetteStrength float
+var CornersRadius float
+
+const pi = 3.14159265
+
+// hash is a pseudo-random number in 0..1 for p.
+func hash(p vec2) float {
+	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453)
+}
+
+// luma is the brightness of c.
+func luma(c vec3) float {
+	return dot(c, vec3(0.299, 0.587, 0.114))
+}
+
+// frame is the frame's pixel at pos; past the edge the edge repeats.
+func frame(pos vec2) vec3 {
+	q := clamp(floor(pos), vec2(0), imageSrc0Size()-1) + 0.5
+	return imageSrc0UnsafeAt(q + imageSrc0Origin()).rgb
+}
+
+// fine fades in a detail that needs minScale screen pixels per frame pixel:
+// none a whole pixel short of it, full from it on.
+func fine(minScale float) float {
+	return smoothstep(minScale-1, minScale, Scale)
+}
+
+// sample reads the frame at pos when no effect reads it otherwise.
+func sample(pos vec2, size vec2) vec3 {
+	return frame(pos)
+}
+
+// curvature bulges the glass: the picture bows out towards the corners.
+func curvature(pos vec2, size vec2) vec2 {
+	p := pos/size*2 - 1
+	p *= vec2(1+p.y*p.y*CurvatureX, 1+p.x*p.x*CurvatureY)
+	return (p + 1) / 2 * size
+}
+
+
+// The tear's two waves: how fast they change along the lines and in time.
+// They match the CPU mirror in the kinescope package.
+const tearSlowAlong = 0.35
+const tearSlowSpeed = 54.0
+const tearFastAlong = 1.7
+const tearFastSpeed = 126.0
+
+// tear shifts the lines sideways in a running wave.
+func tear(pos vec2, size vec2) vec2 {
+	wave := 0.7*sin(pos.y*tearSlowAlong+Time*tearSlowSpeed) +
+		0.3*sin(pos.y*tearFastAlong-Time*tearFastSpeed)
+	return vec2(pos.x+TearStrength*TearAmplitude*wave, pos.y)
+}
+
+
+// convergence reads the red and blue guns out of register: their beams
+// part towards the edges of the screen.
+func convergence(pos vec2, size vec2) vec3 {
+	shift := (pos/size*2 - 1) * ConvergenceAmount
+	return vec3(frame(pos+shift).r, frame(pos).g, frame(pos-shift).b)
+}
+
+
+// glow adds the blurred bright areas (image 1, from the glow prepass),
+// read between its pixels so the soft light shows no steps.
+func glow(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+	q := pos - 0.5
+	f := fract(q)
+	i := floor(q)
+	c00 := glowTexel(i, size)
+	c10 := glowTexel(i+vec2(1, 0), size)
+	c01 := glowTexel(i+vec2(0, 1), size)
+	c11 := glowTexel(i+vec2(1, 1), size)
+	return c + mix(mix(c00, c10, f.x), mix(c01, c11, f.x), f.y)*GlowStrength
+}
+
+// glowTexel is the glow's pixel at i; past the edge the edge repeats.
+func glowTexel(i vec2, size vec2) vec3 {
+	q := clamp(i, vec2(0), size-1) + 0.5
+	return imageSrc1UnsafeAtFromSrc0Pos(q + imageSrc0Origin()).rgb
+}
+
+
+// glass is the tube's glass catching the room's light: a cold sheen over
+// the whole screen and a soft reflection in the upper left corner. Bright
+// picture covers it.
+func glass(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+	e := pos/size*2 - 1
+	r := e - vec2(-0.45, -0.55)
+	sheen := GlassLevel * (vec3(0.9, 1, 1) + 1.5*exp(-dot(r, r)*6))
+	return c + sheen*(1-clamp(c, 0, 1))
+}
+
+
+// scanlines darkens the gaps between the beam's lines, one line per frame
+// row: a bright beam runs wider, and its gap is narrower.
+func scanlines(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+	depth := ScanlinesDepth * fine(ScanlinesMinScale) * (1 - 0.6*clamp(luma(c), 0, 1))
+	s := sin(pi * fract(pos.y))
+	return c * mix(1-depth, 1+depth*0.2, s*s)
+}
+
+
+// apertureMask is the phosphor's red, green and blue stripes, one triad per
+// three screen pixels; it keeps the average brightness.
+func apertureMask(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+	dim := 1 - ApertureMaskStrength*fine(ApertureMaskMinScale)
+	m := vec3(dim)
+	column := mod(floor(screen.x), 3)
+	if column < 1 {
+		m.r = 1
+	} else if column < 2 {
+		m.g = 1
+	} else {
+		m.b = 1
+	}
+	return c * m * 3 / (1 + 2*dim)
+}
+
+
+// grain is the signal's snow, in cells of half a frame pixel, new every
+// frame; it shows on black too.
+func grain(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+	cell := floor(pos * 2)
+	n := hash(cell+vec2(mod(Frame, 97)*13.1, mod(Frame, 89)*7.7)) - 0.5
+	return c*(1+n*GrainStrength*2) + n*GrainStrength
+}
+
+
+// flicker trembles the whole picture's brightness.
+func flicker(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+	return c * (1 + FlickerStrength*sin(Time*2*pi*FlickerFrequency))
+}
+
+
+// hum is the mains hum: a light bar rolling slowly down the picture.
+func hum(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+	bar := fract(pos.y/size.y-Time/HumPeriod) - 0.5
+	return c * (1 + HumStrength*exp(-bar*bar*400))
+}
+
+
+// vignette dims the picture towards its corners.
+func vignette(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+	e := pos/size*2 - 1
+	return c * (1 - VignetteStrength*dot(e, e)*dot(e, e)*0.25)
+}
+
+
+// corners cuts the picture to a rectangle with rounded corners, the edge
+// fading over one frame pixel.
+func corners(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+	half := size / 2
+	q := abs(pos-half) - (half - CornersRadius)
+	d := length(max(q, vec2(0))) - CornersRadius
+	return c * clamp(0.5-d, 0, 1)
+}
+
+
+func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
+	size := imageSrc0Size()
+	pos := srcPos - imageSrc0Origin()
+	pos = curvature(pos, size)
+	pos = tear(pos, size)
+	if pos.x < 0 || pos.y < 0 || pos.x >= size.x || pos.y >= size.y {
+		return vec4(0, 0, 0, 1)
+	}
+	c := convergence(pos, size)
+	c = glow(c, pos, size, dstPos.xy)
+	c = glass(c, pos, size, dstPos.xy)
+	c = scanlines(c, pos, size, dstPos.xy)
+	c = apertureMask(c, pos, size, dstPos.xy)
+	c = grain(c, pos, size, dstPos.xy)
+	c = flicker(c, pos, size, dstPos.xy)
+	c = hum(c, pos, size, dstPos.xy)
+	c = vignette(c, pos, size, dstPos.xy)
+	c = corners(c, pos, size, dstPos.xy)
+	return vec4(c, 1)
+}

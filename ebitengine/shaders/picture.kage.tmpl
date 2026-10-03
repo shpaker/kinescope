@@ -1,0 +1,58 @@
+//kage:unit pixels
+
+// The picture pass, composed by kinescope from its effects' fragments.
+// Image 0 is the frame (after its afterglow), image 1 the glow, the same
+// size; positions are in frame pixels from the frame's corner.
+package main
+
+// Time is the TV's clock in seconds, Frame its Updates, Scale the screen
+// pixels per frame pixel.
+var Time float
+var Frame float
+var Scale float
+
+// The effects' params
+{{range .Uniforms}}var {{.}} float
+{{end}}
+const pi = 3.14159265
+
+// hash is a pseudo-random number in 0..1 for p.
+func hash(p vec2) float {
+	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453)
+}
+
+// luma is the brightness of c.
+func luma(c vec3) float {
+	return dot(c, vec3(0.299, 0.587, 0.114))
+}
+
+// frame is the frame's pixel at pos; past the edge the edge repeats.
+func frame(pos vec2) vec3 {
+	q := clamp(floor(pos), vec2(0), imageSrc0Size()-1) + 0.5
+	return imageSrc0UnsafeAt(q + imageSrc0Origin()).rgb
+}
+
+// fine fades in a detail that needs minScale screen pixels per frame pixel:
+// none a whole pixel short of it, full from it on.
+func fine(minScale float) float {
+	return smoothstep(minScale-1, minScale, Scale)
+}
+
+// sample reads the frame at pos when no effect reads it otherwise.
+func sample(pos vec2, size vec2) vec3 {
+	return frame(pos)
+}
+{{range .Fragments}}
+{{.}}
+{{end}}
+func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
+	size := imageSrc0Size()
+	pos := srcPos - imageSrc0Origin()
+{{range .Geometry}}	pos = {{.}}(pos, size)
+{{end}}	if pos.x < 0 || pos.y < 0 || pos.x >= size.x || pos.y >= size.y {
+		return vec4(0, 0, 0, 1)
+	}
+	c := {{.Sample}}(pos, size)
+{{range .Color}}	c = {{.}}(c, pos, size, dstPos.xy)
+{{end}}	return vec4(c, 1)
+}

@@ -1,0 +1,6 @@
+// curvature bulges the glass: the picture bows out towards the corners.
+func curvature(pos vec2, size vec2) vec2 {
+	p := pos/size*2 - 1
+	p *= vec2(1+p.y*p.y*CurvatureX, 1+p.x*p.x*CurvatureY)
+	return (p + 1) / 2 * size
+}

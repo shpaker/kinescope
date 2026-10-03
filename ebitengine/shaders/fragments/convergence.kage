@@ -1,0 +1,6 @@
+// convergence reads the red and blue guns out of register: their beams
+// part towards the edges of the screen.
+func convergence(pos vec2, size vec2) vec3 {
+	shift := (pos/size*2 - 1) * ConvergenceAmount
+	return vec3(frame(pos+shift).r, frame(pos).g, frame(pos-shift).b)
+}

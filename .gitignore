@@ -1,0 +1,4 @@
+dist/
+*.exe
+/kinescope-lab
+.env

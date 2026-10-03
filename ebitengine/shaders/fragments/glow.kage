@@ -1,0 +1,18 @@
+// glow adds the blurred bright areas (image 1, from the glow prepass),
+// read between its pixels so the soft light shows no steps.
+func glow(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+	q := pos - 0.5
+	f := fract(q)
+	i := floor(q)
+	c00 := glowTexel(i, size)
+	c10 := glowTexel(i+vec2(1, 0), size)
+	c01 := glowTexel(i+vec2(0, 1), size)
+	c11 := glowTexel(i+vec2(1, 1), size)
+	return c + mix(mix(c00, c10, f.x), mix(c01, c11, f.x), f.y)*GlowStrength
+}
+
+// glowTexel is the glow's pixel at i; past the edge the edge repeats.
+func glowTexel(i vec2, size vec2) vec3 {
+	q := clamp(i, vec2(0), size-1) + 0.5
+	return imageSrc1UnsafeAtFromSrc0Pos(q + imageSrc0Origin()).rgb
+}

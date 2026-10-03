@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  LINUX_DEPS: >-
+    libglfw3 libglfw3-dev libglu1-mesa-dev mesa-common-dev libx11-dev
+    libxrandr-dev libxinerama-dev libxi-dev libxcursor-dev libxxf86vm-dev
+    libasound2-dev pkg-config xvfb
+
+jobs:
+  check:
+    name: Lint, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y $LINUX_DEPS
+
+      - uses: extractions/setup-just@v3
+
+      - name: Install tools
+        run: just install-tools
+
+      - name: Check formatting
+        run: just fmt-check
+
+      - name: Lint
+        run: just lint
+
+      - name: Lint js/wasm
+        run: just lint-wasm
+
+      # The backend's tests draw on the GPU: a virtual display
+      - name: Test
+        run: xvfb-run -a just test
+
+      - name: Build the lab for the web
+        run: just build-web

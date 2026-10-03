@@ -1,0 +1,87 @@
+name: Version
+
+# Manual release: the next vMAJOR.MINOR.0 from the commits since the last tag
+on:
+  workflow_dispatch:
+
+jobs:
+  tag:
+    name: Tag release
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    concurrency:
+      group: version
+      cancel-in-progress: false
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    env:
+      HEAD_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - uses: extractions/setup-just@v3
+
+      # Release only a commit with a green CI
+      - name: Check CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          conclusion="$(gh run list --workflow ci.yml --commit "$HEAD_SHA" \
+            --event push --json conclusion --jq '.[0].conclusion')"
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::CI for $HEAD_SHA is not green: ${conclusion:-not found}"
+            exit 1
+          fi
+
+      - name: Compute version
+        id: version
+        run: |
+          # The commit is released already: a rerun
+          if [ -n "$(git tag --contains "$HEAD_SHA")" ]; then
+            echo "::notice::Commit $HEAD_SHA is already released"
+            exit 0
+          fi
+          version="$(just next-version)"
+          if [ -z "$version" ]; then
+            echo "::notice::Nothing to release since the last tag"
+            exit 0
+          fi
+          echo "Next version: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Push tag
+        if: steps.version.outputs.version != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git tag "$VERSION" "$HEAD_SHA"
+          git push origin "$VERSION"
+
+  # A tag pushed with GITHUB_TOKEN starts no workflows: call them
+  release:
+    name: Release
+    needs: [tag]
+    if: needs.tag.outputs.version != ''
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ needs.tag.outputs.version }}
+    permissions:
+      contents: write
+
+  pages:
+    name: Pages
+    needs: [tag]
+    if: needs.tag.outputs.version != ''
+    uses: ./.github/workflows/pages.yml
+    with:
+      version: ${{ needs.tag.outputs.version }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

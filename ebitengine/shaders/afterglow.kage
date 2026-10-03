@@ -1,0 +1,15 @@
+//kage:unit pixels
+
+// The afterglow prepass: the frame (image 0) over the fading history of
+// the frames before it (image 1, the same size). The blue phosphor fades
+// slowest, so trails run a little cold.
+package main
+
+// AfterglowDecay is the share of the history kept from frame to frame.
+var AfterglowDecay float
+
+func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
+	current := imageSrc0At(srcPos).rgb
+	history := imageSrc1AtFromSrc0Pos(srcPos).rgb * AfterglowDecay * vec3(0.9, 0.95, 1)
+	return vec4(max(current, history), 1)
+}

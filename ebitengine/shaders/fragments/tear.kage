@@ -1,0 +1,13 @@
+// The tear's two waves: how fast they change along the lines and in time.
+// They match the CPU mirror in the kinescope package.
+const tearSlowAlong = 0.35
+const tearSlowSpeed = 54.0
+const tearFastAlong = 1.7
+const tearFastSpeed = 126.0
+
+// tear shifts the lines sideways in a running wave.
+func tear(pos vec2, size vec2) vec2 {
+	wave := 0.7*sin(pos.y*tearSlowAlong+Time*tearSlowSpeed) +
+		0.3*sin(pos.y*tearFastAlong-Time*tearFastSpeed)
+	return vec2(pos.x+TearStrength*TearAmplitude*wave, pos.y)
+}
