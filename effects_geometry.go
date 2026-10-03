@@ -4,8 +4,6 @@ import "math"
 
 // Keys of the geometry effects' params.
 const (
-	CabinetMargin   ParamKey = "cabinet.margin"
-	CabinetRadius   ParamKey = "cabinet.radius"
 	PowerWidth      ParamKey = "power.width"
 	PowerHeight     ParamKey = "power.height"
 	PowerFlash      ParamKey = "power.flash"
@@ -19,13 +17,11 @@ const (
 )
 
 var (
-	_ Effect = (*Cabinet)(nil)
 	_ Effect = (*Power)(nil)
 	_ Effect = (*Curvature)(nil)
 	_ Effect = (*Degauss)(nil)
 	_ Effect = (*Roll)(nil)
 	_ Effect = (*Tear)(nil)
-	_ warper = (*Cabinet)(nil)
 	_ warper = (*Power)(nil)
 	_ warper = (*Curvature)(nil)
 	_ warper = (*Degauss)(nil)
@@ -51,42 +47,6 @@ func inPicture(p point, size point) point {
 // onFrame is the inverse of inPicture.
 func onFrame(u point, size point) point {
 	return point{(u.x + 1) / 2 * size.x, (u.y + 1) / 2 * size.y}
-}
-
-// Cabinet puts the picture into a monitor of the day: the picture shrinks
-// within the frame's place, and the tube's dark glass, the beige plastic
-// case and the dim room behind show around it. Its margin usually rests at
-// zero and is driven, say by a signal of full screen, where there is room
-// for the case.
-type Cabinet struct {
-	Margin float32 // the case's width on each side, in the picture's half-heights
-	Radius float32 // the rounding of the glass's corners, in frame pixels
-}
-
-// NewCabinet is a case as wide as a seventh of the picture's height.
-func NewCabinet() *Cabinet { return &Cabinet{Margin: 0.15, Radius: 16} }
-
-func (*Cabinet) Name() string { return "cabinet" }
-func (*Cabinet) Stage() Stage { return StageGeometry }
-func (e *Cabinet) Params() []Param {
-	return []Param{
-		{Key: CabinetMargin, Min: 0, Max: 0.5, Value: &e.Margin},
-		{Key: CabinetRadius, Min: 0, Max: 64, Value: &e.Radius},
-	}
-}
-func (e *Cabinet) clone() Effect { c := *e; return &c }
-
-func (*Cabinet) warp(
-	p point,
-	size point,
-	value func(ParamKey) float32,
-	_ float64,
-) point {
-	grow := 1 + float64(value(CabinetMargin))
-	return point{
-		size.x/2 + (p.x-size.x/2)*grow,
-		size.y/2 + (p.y-size.y/2)*grow,
-	}
 }
 
 // Power squeezes the raster as the tube warms up or dies — a dot, a line,

@@ -24,15 +24,12 @@ func Gorizont() Setup {
 	}
 }
 
-// Rubin is a Moscow color set of the eighties, well worn: a bulging tube
-// in a beige case, a soft beam through a slot mask, a dark hum rolling
-// through, plenty of snow — and a glitch every minute or two. Its case
-// shows in full margin; drive cabinet.margin from a signal to show it only
-// where there is room.
+// Rubin is a Moscow color set of the eighties, well worn: a bulging tube,
+// a soft beam through a slot mask, a dark hum rolling through, plenty of
+// snow — and a glitch every minute or two.
 func Rubin() Setup {
 	return Setup{
 		Effects: []Effect{
-			&Cabinet{Margin: 0.15, Radius: 15},
 			NewPower(),
 			&Curvature{X: 0.045, Y: 0.06},
 			NewDegauss(),

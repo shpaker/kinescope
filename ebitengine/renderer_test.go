@@ -53,9 +53,7 @@ func draw(t *testing.T, r *Renderer, tv *kinescope.TV, frame *ebiten.Image, scal
 // The shader's geometry and TV.Map must agree: a pointer mapped by Map
 // lands on the pixel the screen shows under it.
 func TestShaderGeometryMatchesMap(t *testing.T) {
-	// Outside the picture the cabinet paints: only a full blue is the frame
 	geometryMatchesMap(t, func(blue byte) bool { return blue == 255 },
-		&kinescope.Cabinet{Margin: 0.1},
 		&kinescope.Power{Width: 0.8, Height: 0.9},
 		&kinescope.Curvature{X: 0.1, Y: 0.15},
 		&kinescope.Degauss{Strength: 0.6},
@@ -90,8 +88,8 @@ func geometryMatchesMap(
 	for y := range frameH {
 		for x := range frameW {
 			mx, my := tv.Map(float64(x)+0.5, float64(y)+0.5, frameW, frameH)
-			// Right at the picture's edge, rounding and the soft edges of
-			// the cabinet and the roll's blanking bar decide
+			// Right at the picture's edge, rounding and the roll's soft
+			// blanking bar decide
 			if nearEdge(mx, my) {
 				continue
 			}

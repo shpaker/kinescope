@@ -53,7 +53,6 @@ type Effect interface {
 func Effects() []Effect {
 	return []Effect{
 		NewAfterglow(),
-		NewCabinet(),
 		NewPower(),
 		NewCurvature(),
 		NewDegauss(),

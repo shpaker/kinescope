@@ -14,7 +14,7 @@ it, then share the setup as a link or copy it as Go.
 - [tnk9x](https://github.com/shpaker/tnk9x) — tanks from the 90s the way we
   remember them, with real-time 2D lighting; the `Gorizont` set.
 - [modern-robinson](https://github.com/shpaker/modern-robinson) — a remake of
-  the 1999 quest «Новый Робинзон»; the `Rubin` set in its beige case.
+  the 1999 quest «Новый Робинзон»; the `Rubin` set.
 
 ## Quick start
 
@@ -30,7 +30,7 @@ renderer, err := ebitengine.NewRenderer()
 // Every tick
 tv.Update(1.0 / 60)
 
-// In DrawFinalScreen: the frame where geoM puts it, the TV over the whole screen
+// In DrawFinalScreen: the frame where geoM puts it, black around it
 func (g *Game) DrawFinalScreen(screen ebiten.FinalScreen, offscreen *ebiten.Image, geoM ebiten.GeoM) {
 	_ = g.renderer.Draw(screen, offscreen, g.tv, geoM)
 }
@@ -81,16 +81,6 @@ tv.PowerOff()                    // and folds away on quit…
 if tv.Dark() { /* …then quit */ }
 ```
 
-A signal can drive a look, too: the Rubin's monitor case shows only in full
-screen, where there is room for it.
-
-```go
-setup.Sources["fullscreen"] = kinescope.Signal{}
-setup.Drives = append(setup.Drives, kinescope.Drive{
-	From: "fullscreen", To: kinescope.CabinetMargin, Weight: 0.15,
-})
-```
-
 Modulation adds to a param's base and never changes it, so `tv.Values()` is
 always what the player set, even in the middle of a glitch.
 
@@ -114,7 +104,6 @@ the TV shows at a point — hit what the player sees.
 | Effect | Stage | What it does |
 |---|---|---|
 | `Afterglow` | prepass | bright moving things leave a short, cold trail |
-| `Cabinet` | geometry | the monitor's beige case and the dim room around the picture |
 | `Power` | geometry | the picture grows from a dot and folds away (`PowerOn`, `PowerOff`) |
 | `Curvature` | geometry | the glass bulges the picture |
 | `Degauss` | geometry | the picture wobbles as the coil shakes the mask |
@@ -139,8 +128,7 @@ Presets are named after Soviet sets:
 
 - `Gorizont()` — a well-kept Minsk color set of the eighties: crisp scanlines,
   a faint aperture mask, glowing highlights, a short afterglow.
-- `Rubin()` — a well-worn Moscow set in a beige case: a soft beam through a
-  slot mask, a dark hum, plenty of grain and a glitch every minute or two.
+- `Rubin()` — a well-worn Moscow set: a soft beam through a slot mask, a dark hum, plenty of grain and a glitch every minute or two.
 
 ## Under the hood
 

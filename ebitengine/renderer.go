@@ -119,8 +119,7 @@ func (r *Renderer) Prepare(tv *kinescope.TV) error {
 
 // Draw draws frame through the tv over the whole of dst: the picture where
 // geoM puts the frame — as Ebitengine's FinalScreenDrawer hands it, or a
-// whole-number scale and an offset — and the black, or the cabinet, around
-// it. geoM scales evenly and does not rotate. Draw fails only if the TV's
+// whole-number scale and an offset — and black around it. geoM scales evenly and does not rotate. Draw fails only if the TV's
 // set of effects cannot be composed into a shader.
 func (r *Renderer) Draw(
 	dst ebiten.FinalScreen,
