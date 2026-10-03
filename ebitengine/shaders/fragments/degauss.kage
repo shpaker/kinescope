@@ -1,0 +1,16 @@
+// The wobble of the coil: across and down, along and in time. They match
+// the CPU mirror in the kinescope package.
+const degaussAcross = 0.02
+const degaussAcrossAlong = 18.0
+const degaussAcrossSpeed = 30.0
+const degaussDown = 0.01
+const degaussDownAlong = 14.0
+const degaussDownSpeed = 23.0
+
+// degauss wobbles the picture as the coil shakes the mask.
+func degauss(pos vec2, size vec2) vec2 {
+	u := pos/size*2 - 1
+	u.x += DegaussStrength * degaussAcross * sin(u.y*degaussAcrossAlong+Time*degaussAcrossSpeed)
+	u.y += DegaussStrength * degaussDown * sin(u.x*degaussDownAlong+Time*degaussDownSpeed)
+	return (u + 1) / 2 * size
+}

@@ -1,0 +1,10 @@
+// power squeezes the raster around the picture's middle as the tube warms
+// up or dies.
+func power(pos vec2, size vec2) vec2 {
+	return size/2 + (pos-size/2)/max(vec2(PowerWidth, PowerHeight), vec2(0.001))
+}
+
+// powerPost adds the beam's flash to what is left of the picture.
+func powerPost(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
+	return c + PowerFlash
+}

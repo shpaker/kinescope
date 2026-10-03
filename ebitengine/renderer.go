@@ -54,8 +54,9 @@ type Renderer struct {
 	decay      map[string]any
 	decayValue []float32
 
-	// Draw options, reused between frames
-	pictureOp   ebiten.DrawRectShaderOptions
+	// The quad over the screen and the draw options, reused between frames
+	vertices    [4]ebiten.Vertex
+	pictureOp   ebiten.DrawTrianglesShaderOptions
 	afterglowOp ebiten.DrawRectShaderOptions
 	acrossOp    ebiten.DrawRectShaderOptions
 	downOp      ebiten.DrawRectShaderOptions
@@ -116,16 +117,16 @@ func (r *Renderer) Prepare(tv *kinescope.TV) error {
 	return r.prepare(tv)
 }
 
-// Draw draws frame through the tv onto dst, scaled by a whole scale and
-// placed at x, y. It fails only if the TV's set of effects cannot be
-// composed into a shader.
+// Draw draws frame through the tv over the whole of dst: the picture where
+// geoM puts the frame — as Ebitengine's FinalScreenDrawer hands it, or a
+// whole-number scale and an offset — and the black, or the cabinet, around
+// it. geoM scales evenly and does not rotate. Draw fails only if the TV's
+// set of effects cannot be composed into a shader.
 func (r *Renderer) Draw(
 	dst ebiten.FinalScreen,
 	frame *ebiten.Image,
 	tv *kinescope.TV,
-	x int,
-	y int,
-	scale int,
+	geoM ebiten.GeoM,
 ) error {
 	if tv != r.tv || tv.Revision() != r.revision {
 		if err := r.prepare(tv); err != nil {
@@ -142,23 +143,52 @@ func (r *Renderer) Draw(
 	}
 	r.time[0] = float32(tv.Time())
 	r.frame[0] = float32(tv.Frame() % grainCycle)
-	r.scale[0] = float32(scale)
+	r.scale[0] = float32(geoM.Element(0, 0))
 
 	size := frame.Bounds().Size()
 	source := r.drawAfterglow(frame, size, tv)
 
 	op := &r.pictureOp
-	*op = ebiten.DrawRectShaderOptions{}
+	*op = ebiten.DrawTrianglesShaderOptions{Blend: ebiten.BlendCopy}
 	op.Images[0] = source
 	if r.hasGlow {
 		r.drawGlow(source, size, tv)
 		op.Images[1] = r.glow
 	}
-	op.GeoM.Scale(float64(scale), float64(scale))
-	op.GeoM.Translate(float64(x), float64(y))
 	op.Uniforms = r.uniforms
-	dst.DrawRectShader(size.X, size.Y, r.picture, op)
+	r.cover(dst.Bounds(), source.Bounds(), geoM)
+	dst.DrawTrianglesShader32(r.vertices[:], quad, r.picture, op)
 	return nil
+}
+
+// quad is the two triangles of a rectangle's four corners.
+var quad = []uint32{0, 1, 2, 1, 2, 3}
+
+// cover lays the quad over the whole screen; its source corners are where
+// the screen's corners fall on the frame, beside it where the picture does
+// not fill the screen.
+func (r *Renderer) cover(screen, frame image.Rectangle, geoM ebiten.GeoM) {
+	inverse := geoM
+	inverse.Invert()
+	corners := [4]image.Point{
+		screen.Min,
+		{screen.Max.X, screen.Min.Y},
+		{screen.Min.X, screen.Max.Y},
+		screen.Max,
+	}
+	for i, p := range corners {
+		sx, sy := inverse.Apply(float64(p.X), float64(p.Y))
+		r.vertices[i] = ebiten.Vertex{
+			DstX:   float32(p.X),
+			DstY:   float32(p.Y),
+			SrcX:   float32(sx) + float32(frame.Min.X),
+			SrcY:   float32(sy) + float32(frame.Min.Y),
+			ColorR: 1,
+			ColorG: 1,
+			ColorB: 1,
+			ColorA: 1,
+		}
+	}
 }
 
 // prepare composes the tv's picture shader, or takes it from the ones

@@ -23,9 +23,14 @@ renderer, err := ebitengine.NewRenderer()
 // Every tick
 tv.Update(1.0 / 60)
 
-// In DrawFinalScreen: the game's low-resolution frame, scaled by a whole number
-err = renderer.Draw(screen, offscreen, tv, x, y, scale)
+// In DrawFinalScreen: the frame where geoM puts it, the TV over the whole screen
+func (g *Game) DrawFinalScreen(screen ebiten.FinalScreen, offscreen *ebiten.Image, geoM ebiten.GeoM) {
+	_ = g.renderer.Draw(screen, offscreen, g.tv, geoM)
+}
 ```
+
+Any scale works: a whole number keeps pixel art crisp, a fraction is
+smoothed by `Softness`.
 
 ## How it works
 
@@ -37,7 +42,8 @@ A **TV** is a set at work. It is built from a **Setup** — plain data:
   sets (a shake), a `Drift` that wanders at random (the reception), a `Wave`.
 - **Drives** — a source moving a param: `{From: "shake", To: kinescope.TearStrength, Weight: 1}`.
 - **Schedules** — episodes played now and then: `Every{Mean: 90, Spread: 30, Episodes: ...}`.
-  An **episode** is a short fault with an envelope: `kinescope.Jitter()`, `kinescope.Ripple()`.
+  An **episode** is a short fault with an envelope: `Jitter()`, `Ripple()`,
+  `RollOver()`, `SnowBurst()`, `Degaussing()`.
 
 The game talks to the TV in facts — a signal's level, an episode to play —
 and never holds the effects themselves:
@@ -61,6 +67,21 @@ tv, err := kinescope.NewTV(setup)
 shake, err := tv.Signal("shake") // once; a typo is an error here, not a dead knob in play
 shake.Set(level)                 // whenever the game likes
 tv.Play(kinescope.Ripple())      // on a change of scene
+tv.Hold(dragging)                // scheduled glitches wait
+
+tv.PowerOn()                     // the picture grows from a dot
+tv.PowerOff()                    // and folds away on quit…
+if tv.Dark() { /* …then quit */ }
+```
+
+A signal can drive a look, too: the Rubin's monitor case shows only in full
+screen, where there is room for it.
+
+```go
+setup.Sources["fullscreen"] = kinescope.Signal{}
+setup.Drives = append(setup.Drives, kinescope.Drive{
+	From: "fullscreen", To: kinescope.CabinetMargin, Weight: 0.15,
+})
 ```
 
 Modulation adds to a param's base and never changes it, so `tv.Values()` is
@@ -86,21 +107,33 @@ the TV shows at a point — hit what the player sees.
 | Effect | Stage | What it does |
 |---|---|---|
 | `Afterglow` | prepass | bright moving things leave a short, cold trail |
+| `Cabinet` | geometry | the monitor's beige case and the dim room around the picture |
+| `Power` | geometry | the picture grows from a dot and folds away (`PowerOn`, `PowerOff`) |
 | `Curvature` | geometry | the glass bulges the picture |
-| `Tear` | geometry | lines shift sideways in a running wave |
-| `Convergence` | sample | red and blue guns out of register towards the edges |
+| `Degauss` | geometry | the picture wobbles as the coil shakes the mask |
+| `Roll` | geometry | the picture slips a whole height, the blanking bar with it |
+| `Tear` | geometry | lines shift sideways: a running wave and torn bands |
+| `Softness` | read | the beam spreads between neighboring pixels |
+| `Convergence` | sample | red and blue guns out of register |
 | `Glow` | light | light bleeds around bright areas |
 | `Glass` | light | black is never quite black; a reflection in the corner |
 | `Scanlines` | beam | dark gaps between the beam's lines |
+| `Interlace` | beam | the two fields of lines take turns, a shimmer |
 | `ApertureMask` | mask | the phosphor's red, green and blue stripes |
-| `Grain` | post | the signal's snow |
+| `SlotMask` | mask | the stripes of a shadow-mask set, cut by slots |
+| `Grain` | post | fine noise over the picture |
+| `Snow` | post | the picture drowns in snow |
 | `Flicker` | post | the picture's brightness trembles |
-| `Hum` | post | a light bar rolls down the picture |
+| `Hum` | post | a bar, light or dark, rolls down the picture |
 | `Vignette` | post | the corners dim |
 | `Corners` | frame | the picture's corners round off |
 
-Presets are named after Soviet sets: `Gorizont()` is a well-kept Minsk colour
-set of the eighties.
+Presets are named after Soviet sets:
+
+- `Gorizont()` — a well-kept Minsk color set of the eighties: crisp scanlines,
+  a faint aperture mask, glowing highlights, a short afterglow.
+- `Rubin()` — a well-worn Moscow set in a beige case: a soft beam through a
+  slot mask, a dark hum, plenty of grain and a glitch every minute or two.
 
 ## Under the hood
 
@@ -113,9 +146,9 @@ cmd/kinescope-lab    the lab: desktop and web
 Dependencies point inwards only, checked by depguard: the core knows no
 engine, the backend knows no lab. The backend composes **one** picture
 shader per set of effects from a Kage fragment per effect, in the order
-light goes through a real set (geometry → sample → light → beam → mask →
-post → frame), plus a prepass for glow and afterglow. Effects a TV does not
-have cost nothing.
+light goes through a real set (geometry → read → sample → light → beam →
+mask → post → frame), plus a prepass for glow and afterglow. Effects a TV
+does not have cost nothing.
 
 Tests check that every effect compiles alone and with all the others, and
 that the shader's geometry agrees with `TV.Map` pixel for pixel.

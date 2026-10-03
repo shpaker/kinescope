@@ -66,9 +66,17 @@ func (s Setup) validate() error {
 	return errors.Join(errs...)
 }
 
+// single are the stages a TV has at most one effect of: each reads the
+// frame in its own way.
+var single = map[Stage]string{
+	StageRead:   "read the frame",
+	StageSample: "gather the picture",
+}
+
 func validateEffects(effects []Effect) []error {
 	var errs []error
 	seen := make(map[string]bool)
+	stages := make(map[Stage]string)
 	for i, effect := range effects {
 		if effect == nil {
 			errs = append(errs, fmt.Errorf("effect %d is nil", i))
@@ -78,6 +86,13 @@ func validateEffects(effects []Effect) []error {
 			errs = append(errs, fmt.Errorf("effect %q is listed twice", effect.Name()))
 		}
 		seen[effect.Name()] = true
+		if what, ok := single[effect.Stage()]; ok {
+			if other, ok := stages[effect.Stage()]; ok {
+				errs = append(errs, fmt.Errorf(
+					"effects %q and %q both %s", other, effect.Name(), what))
+			}
+			stages[effect.Stage()] = effect.Name()
+		}
 	}
 	return errs
 }

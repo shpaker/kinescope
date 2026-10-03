@@ -36,6 +36,7 @@ type game struct {
 
 	// What the panel shows and sets
 	scale     int // screen pixels per frame pixel; 0 fits the window
+	preset    int
 	bypass    bool
 	shake     float64
 	shadows   map[string]*float64
@@ -123,7 +124,7 @@ func (g *game) Draw(screen *ebiten.Image) {
 		op.GeoM.Scale(float64(scale), float64(scale))
 		op.GeoM.Translate(float64(x), float64(y))
 		screen.DrawImage(frame, op)
-	} else if err := g.renderer.Draw(screen, frame, g.lab.tv, x, y, scale); err != nil {
+	} else if err := g.renderer.Draw(screen, frame, g.lab.tv, g.geoM(x, y, scale)); err != nil {
 		log.Print(err)
 		g.failed = true
 	}
@@ -140,6 +141,14 @@ func (g *game) place(frame image.Point) (x, y, scale int) {
 		scale = max(1, min(w/frame.X, h/frame.Y))
 	}
 	return panel + (w-frame.X*scale)/2, (h - frame.Y*scale) / 2, scale
+}
+
+// geoM puts the frame at x, y scaled by scale.
+func (g *game) geoM(x, y, scale int) ebiten.GeoM {
+	var geoM ebiten.GeoM
+	geoM.Scale(float64(scale), float64(scale))
+	geoM.Translate(float64(x), float64(y))
+	return geoM
 }
 
 func (g *game) uiScale() int {

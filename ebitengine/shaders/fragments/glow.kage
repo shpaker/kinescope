@@ -1,6 +1,6 @@
 // glow adds the blurred bright areas (image 1, from the glow prepass),
 // read between its pixels so the soft light shows no steps.
-func glow(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+func glow(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
 	q := pos - 0.5
 	f := fract(q)
 	i := floor(q)

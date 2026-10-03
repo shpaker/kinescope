@@ -5,6 +5,7 @@ package kinescope
 const (
 	AfterglowDecay       ParamKey = "afterglow.decay"
 	ConvergenceAmount    ParamKey = "convergence.amount"
+	ConvergenceOffset    ParamKey = "convergence.offset"
 	GlowThreshold        ParamKey = "glow.threshold"
 	GlowStrength         ParamKey = "glow.strength"
 	GlowRadius           ParamKey = "glow.radius"
@@ -13,6 +14,11 @@ const (
 	ScanlinesMinScale    ParamKey = "scanlines.min_scale"
 	ApertureMaskStrength ParamKey = "aperture_mask.strength"
 	ApertureMaskMinScale ParamKey = "aperture_mask.min_scale"
+	SoftnessAmount       ParamKey = "softness.amount"
+	InterlaceStrength    ParamKey = "interlace.strength"
+	InterlaceMinScale    ParamKey = "interlace.min_scale"
+	SlotMaskStrength     ParamKey = "slot_mask.strength"
+	SlotMaskMinScale     ParamKey = "slot_mask.min_scale"
 )
 
 var (
@@ -22,6 +28,9 @@ var (
 	_ Effect = (*Glass)(nil)
 	_ Effect = (*Scanlines)(nil)
 	_ Effect = (*ApertureMask)(nil)
+	_ Effect = (*Softness)(nil)
+	_ Effect = (*Interlace)(nil)
+	_ Effect = (*SlotMask)(nil)
 )
 
 // Afterglow keeps the phosphor glowing after the beam has passed: bright
@@ -41,9 +50,13 @@ func (e *Afterglow) Params() []Param {
 func (e *Afterglow) clone() Effect { c := *e; return &c }
 
 // Convergence puts the red and blue guns out of register: their beams part
-// towards the edges of the screen.
+// towards the edges of the screen, and on a worn set drift apart sideways
+// all over it.
 type Convergence struct {
-	Amount float32 // the parting at the edges, in frame pixels
+	Amount float32 // the parting at the edges, outwards, in frame pixels
+	// Offset is the sideways drift, red to the right and blue to the left:
+	// half of it in the middle, all of it at the edges, in frame pixels.
+	Offset float32
 }
 
 // NewConvergence is a set a little out of register.
@@ -52,7 +65,10 @@ func NewConvergence() *Convergence { return &Convergence{Amount: 0.45} }
 func (*Convergence) Name() string { return "convergence" }
 func (*Convergence) Stage() Stage { return StageSample }
 func (e *Convergence) Params() []Param {
-	return []Param{{Key: ConvergenceAmount, Min: 0, Max: 3, Value: &e.Amount}}
+	return []Param{
+		{Key: ConvergenceAmount, Min: 0, Max: 3, Value: &e.Amount},
+		{Key: ConvergenceOffset, Min: 0, Max: 3, Value: &e.Offset},
+	}
 }
 func (e *Convergence) clone() Effect { c := *e; return &c }
 
@@ -139,3 +155,64 @@ func (e *ApertureMask) Params() []Param {
 	}
 }
 func (e *ApertureMask) clone() Effect { c := *e; return &c }
+
+// Softness spreads the beam between neighboring pixels of a line: 0 keeps
+// them square, 1 blends them smoothly. It shows on a screen scaled by a
+// fraction, where square pixels come out uneven.
+type Softness struct {
+	Amount float32
+}
+
+// NewSoftness is a beam a little soft.
+func NewSoftness() *Softness { return &Softness{Amount: 0.35} }
+
+func (*Softness) Name() string { return "softness" }
+func (*Softness) Stage() Stage { return StageRead }
+func (e *Softness) Params() []Param {
+	return []Param{{Key: SoftnessAmount, Min: 0, Max: 1, Value: &e.Amount}}
+}
+func (e *Softness) clone() Effect { c := *e; return &c }
+
+// Interlace draws the lines in two fields taking turns, frame by frame:
+// the lines of the field not drawn fade, and the picture shimmers.
+type Interlace struct {
+	Strength float32
+	// MinScale is the screen pixels per frame pixel the fields need: below
+	// it they fade out.
+	MinScale float32
+}
+
+// NewInterlace is a faint shimmer.
+func NewInterlace() *Interlace { return &Interlace{Strength: 0.3, MinScale: 2} }
+
+func (*Interlace) Name() string { return "interlace" }
+func (*Interlace) Stage() Stage { return StageBeam }
+func (e *Interlace) Params() []Param {
+	return []Param{
+		{Key: InterlaceStrength, Min: 0, Max: 1, Value: &e.Strength},
+		{Key: InterlaceMinScale, Min: 1, Max: 8, Value: &e.MinScale},
+	}
+}
+func (e *Interlace) clone() Effect { c := *e; return &c }
+
+// SlotMask is the phosphor of a shadow-mask set: red, green and blue
+// stripes cut by slots, each column of triads half a slot below the last.
+type SlotMask struct {
+	Strength float32
+	// MinScale is the screen pixels per frame pixel the mask needs: below
+	// it the mask fades out.
+	MinScale float32
+}
+
+// NewSlotMask is a mask that shows on a big enough screen.
+func NewSlotMask() *SlotMask { return &SlotMask{Strength: 0.35, MinScale: 3} }
+
+func (*SlotMask) Name() string { return "slot_mask" }
+func (*SlotMask) Stage() Stage { return StageMask }
+func (e *SlotMask) Params() []Param {
+	return []Param{
+		{Key: SlotMaskStrength, Min: 0, Max: 1, Value: &e.Strength},
+		{Key: SlotMaskMinScale, Min: 1, Max: 8, Value: &e.MinScale},
+	}
+}
+func (e *SlotMask) clone() Effect { c := *e; return &c }

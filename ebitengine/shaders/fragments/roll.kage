@@ -1,0 +1,16 @@
+// roll slips the picture down by a share of its height.
+func roll(pos vec2, size vec2) vec2 {
+	if RollStrength <= 0 {
+		return pos
+	}
+	return vec2(pos.x, mod(pos.y+RollStrength*size.y, size.y))
+}
+
+// rollPost darkens the blanking bar between two rolled pictures.
+func rollPost(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
+	if RollStrength <= 0 {
+		return c
+	}
+	t := pos.y / size.y
+	return c * smoothstep(0, 0.04, t) * smoothstep(0, 0.04, 1-t)
+}

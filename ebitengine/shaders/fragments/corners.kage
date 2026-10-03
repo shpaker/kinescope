@@ -1,6 +1,6 @@
 // corners cuts the picture to a rectangle with rounded corners, the edge
 // fading over one frame pixel.
-func corners(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+func corners(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
 	half := size / 2
 	q := abs(pos-half) - (half - CornersRadius)
 	d := length(max(q, vec2(0))) - CornersRadius

@@ -1,0 +1,25 @@
+// slotMask is the phosphor of a shadow-mask set at a screen pixel: red,
+// green and blue stripes, cut by slots that step half a slot from one
+// column of triads to the next. It keeps the average brightness.
+func slotMask(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
+	m := SlotMaskStrength * fine(SlotMaskMinScale)
+	lo := 1 - 0.5*m
+	hi := 1 + 0.5*m
+	q := floor(screen)
+	offset := 0.0
+	if fract(q.x/6) < 0.5 {
+		offset = 1
+	}
+	slot := 1.0
+	if fract((q.y+offset)/2) < 0.5 {
+		slot = lo
+	}
+	stripe := vec3(lo, lo, hi)
+	x := fract(q.x / 3)
+	if x < 0.333 {
+		stripe = vec3(hi, lo, lo)
+	} else if x < 0.666 {
+		stripe = vec3(lo, hi, lo)
+	}
+	return c * stripe * slot
+}

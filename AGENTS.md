@@ -22,6 +22,9 @@ Architecture and the right abstractions come first.
   GPU resources and per-frame state live only in the backend's `Renderer`.
 - The set of effects is closed (unexported `clone`): a new effect is added to the core,
   to `kinescope.Effects()` and as a fragment in `ebitengine/shaders/fragments/<name>.kage`.
+- The fragment contract (stage signatures, hooks into later stages such as `<name>Post`,
+  the helpers) is documented in `ebitengine/compose.go`. A TV has at most one effect in
+  the read and sample stages.
 - Param keys are `<effect name>.<field in snake_case>`; uniforms and the lab's Go export
   are derived from them. Keep the convention.
 - Geometry effects implement the core's `warper` (CPU mirror); the shader must agree

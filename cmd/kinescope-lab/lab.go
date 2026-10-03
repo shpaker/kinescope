@@ -67,9 +67,12 @@ setup.Drives = append(setup.Drives,
 			name: "glitches",
 			apply: func(s *kinescope.Setup) {
 				s.Schedules["glitches"] = kinescope.Every{
-					Mean:     12,
-					Spread:   8,
-					Episodes: []kinescope.Episode{kinescope.Jitter(), kinescope.Ripple()},
+					Mean:   12,
+					Spread: 8,
+					Episodes: []kinescope.Episode{
+						kinescope.Jitter(), kinescope.Ripple(), kinescope.RollOver(),
+						kinescope.SnowBurst(), kinescope.Degaussing(),
+					},
 				}
 				if _, ok := s.Sources["reception"]; ok {
 					s.Drives = append(s.Drives, kinescope.Drive{
@@ -81,7 +84,10 @@ setup.Drives = append(setup.Drives,
 setup.Schedules["glitches"] = kinescope.Every{
 	Mean:     12,
 	Spread:   8,
-	Episodes: []kinescope.Episode{kinescope.Jitter(), kinescope.Ripple()},
+	Episodes: []kinescope.Episode{
+		kinescope.Jitter(), kinescope.Ripple(), kinescope.RollOver(),
+		kinescope.SnowBurst(), kinescope.Degaussing(),
+	},
 }
 if _, ok := setup.Sources["reception"]; ok {
 	setup.Drives = append(setup.Drives, kinescope.Drive{
@@ -93,21 +99,50 @@ if _, ok := setup.Sources["reception"]; ok {
 	}
 }
 
+// preset is a TV the lab can start from.
+type preset struct {
+	name  string
+	setup func() kinescope.Setup
+}
+
+// presets are the library's TVs.
+var presets = []preset{
+	{"Gorizont", kinescope.Gorizont},
+	{"Rubin", kinescope.Rubin},
+}
+
 // newLab starts the lab on Gorizont, then on what the state says.
 func newLab(state string) (*lab, error) {
-	l := &lab{values: make(map[kinescope.ParamKey]float32), moods: newMoods()}
-	gorizont := map[string]bool{}
-	for _, e := range kinescope.Gorizont().Effects {
-		gorizont[e.Name()] = true
+	l := &lab{moods: newMoods()}
+	l.load(presets[0].setup())
+	l.decode(state)
+	return l, l.rebuild()
+}
+
+// load takes a preset's effects and values: its effects on, the rest off at
+// their defaults.
+func (l *lab) load(setup kinescope.Setup) {
+	on := map[string]bool{}
+	for _, e := range setup.Effects {
+		on[e.Name()] = true
 	}
+	l.effects = l.effects[:0]
+	l.values = make(map[kinescope.ParamKey]float32)
 	for _, e := range kinescope.Effects() {
-		l.effects = append(l.effects, toggle{name: e.Name(), on: gorizont[e.Name()]})
+		l.effects = append(l.effects, toggle{name: e.Name(), on: on[e.Name()]})
 		for _, p := range e.Params() {
 			l.values[p.Key] = *p.Value
 		}
 	}
-	l.decode(state)
-	return l, l.rebuild()
+	for key, value := range setup.Values() {
+		l.values[key] = value
+	}
+}
+
+// usePreset switches the lab to a preset, keeping the moods.
+func (l *lab) usePreset(i int) error {
+	l.load(presets[i].setup())
+	return l.rebuild()
 }
 
 // rebuild builds the TV afresh from the lab's model.
@@ -174,12 +209,10 @@ func (l *lab) setEffects() error {
 
 // reset puts the lab back to Gorizont without moods.
 func (l *lab) reset() error {
-	fresh, err := newLab("")
-	if err != nil {
-		return err
+	for i := range l.moods {
+		l.moods[i].on = false
 	}
-	*l = *fresh
-	return nil
+	return l.usePreset(0)
 }
 
 // State

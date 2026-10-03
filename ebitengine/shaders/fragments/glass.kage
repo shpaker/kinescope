@@ -1,7 +1,7 @@
 // glass is the tube's glass catching the room's light: a cold sheen over
 // the whole screen and a soft reflection in the upper left corner. Bright
 // picture covers it.
-func glass(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+func glass(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
 	e := pos/size*2 - 1
 	r := e - vec2(-0.45, -0.55)
 	sheen := GlassLevel * (vec3(0.9, 1, 1) + 1.5*exp(-dot(r, r)*6))

@@ -1,0 +1,9 @@
+// snow drowns the picture in snow, new every frame, on the screen's own
+// pixels.
+func snow(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
+	if SnowStrength <= 0 {
+		return c
+	}
+	n := hash(screen*0.37 + fract(Time*7)*311)
+	return mix(c, vec3(n), clamp(SnowStrength, 0, 1)*0.75)
+}

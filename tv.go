@@ -40,6 +40,7 @@ type TV struct {
 	schedules []*schedule
 	playing   []episode
 	held      bool
+	power     power
 
 	// Clock
 	time   float64
@@ -84,6 +85,7 @@ func NewTV(setup Setup) (*TV, error) {
 		seed:   setup.Seed,
 		random: rand.New(rand.NewPCG(setup.Seed, mix64(setup.Seed))),
 		rates:  make(map[string]*float32),
+		power:  newPower(),
 	}
 
 	// Map order is random: sources and schedules go by name, so the same
@@ -262,6 +264,7 @@ func (tv *TV) Epoch() int { return tv.epoch }
 func (tv *TV) Update(dt float64) {
 	tv.time += dt
 	tv.frames++
+	tv.power.since += dt
 
 	// Episodes playing
 	playing := tv.playing[:0]
@@ -296,6 +299,10 @@ func (tv *TV) modulate() {
 			tv.mods[i] += float32(tv.sources[d.from].value) * d.weight
 		}
 	}
+	width, height, flash := tv.power.raster()
+	tv.add(PowerWidth, float32(width-1))
+	tv.add(PowerHeight, float32(height-1))
+	tv.add(PowerFlash, float32(flash))
 	for _, e := range tv.playing {
 		level, _ := e.episode.Envelope.level(e.t)
 		for _, target := range e.episode.Targets {
@@ -303,6 +310,13 @@ func (tv *TV) modulate() {
 				tv.mods[i] += float32(level) * target.Weight
 			}
 		}
+	}
+}
+
+// add adds to what modulation adds to a param, if the TV has it.
+func (tv *TV) add(key ParamKey, value float32) {
+	if i, ok := tv.index[key]; ok {
+		tv.mods[i] += value
 	}
 }
 

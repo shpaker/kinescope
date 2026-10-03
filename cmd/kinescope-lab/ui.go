@@ -13,6 +13,14 @@ import (
 
 var sourceNames = []string{"Test card", "Moving scene", "Dropped picture"}
 
+func presetNames() []string {
+	names := make([]string, len(presets))
+	for i, p := range presets {
+		names[i] = p.name
+	}
+	return names
+}
+
 // panel is the lab's controls.
 func (g *game) panel(ctx *debugui.Context) error {
 	ctx.SetScale(g.uiScale())
@@ -107,9 +115,19 @@ func (g *game) moodsPanel(ctx *debugui.Context) {
 		ctx.SliderF(&g.shake, 0, 1, 0.01, 2).On(func() {
 			g.lab.shake.Set(float32(g.shake))
 		})
-		ctx.SetGridLayout([]int{-1, -1}, nil)
-		ctx.Button("Play jitter").On(func() { g.lab.tv.Play(kinescope.Jitter()) })
-		ctx.Button("Play ripple").On(func() { g.lab.tv.Play(kinescope.Ripple()) })
+		ctx.SetGridLayout([]int{-1, -1, -1}, nil)
+		ctx.Button("Jitter").On(func() { g.lab.tv.Play(kinescope.Jitter()) })
+		ctx.Button("Ripple").On(func() { g.lab.tv.Play(kinescope.Ripple()) })
+		ctx.Button("Roll").On(func() { g.lab.tv.Play(kinescope.RollOver()) })
+		ctx.Button("Snow").On(func() { g.lab.tv.Play(kinescope.SnowBurst()) })
+		ctx.Button("Degauss").On(func() { g.lab.tv.Play(kinescope.Degaussing()) })
+		ctx.Button("Power").On(func() {
+			if g.lab.tv.Dark() {
+				g.lab.tv.PowerOn()
+			} else {
+				g.lab.tv.PowerOff()
+			}
+		})
 	})
 }
 
@@ -122,12 +140,20 @@ func (g *game) sharePanel(ctx *debugui.Context) {
 		ctx.Button("Copy as Go").On(func() {
 			g.platform.Export("Go", g.lab.goCode())
 		})
+		ctx.SetGridLayout([]int{-1, -2}, nil)
+		ctx.Text("Preset")
+		ctx.Dropdown(&g.preset, presetNames()).On(func() {
+			if err := g.lab.usePreset(g.preset); err != nil {
+				log.Print(err)
+			}
+			g.lab.shake.Set(float32(g.shake))
+		})
 		ctx.SetGridLayout([]int{-1}, nil)
 		ctx.Button("Back to Gorizont").On(func() {
 			if err := g.lab.reset(); err != nil {
 				log.Print(err)
 			}
-			g.shake = 0
+			g.shake, g.preset = 0, 0
 		})
 	})
 }

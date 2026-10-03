@@ -40,7 +40,9 @@ func draw(t *testing.T, r *Renderer, tv *kinescope.TV, frame *ebiten.Image, scal
 	t.Helper()
 	b := frame.Bounds()
 	dst := ebiten.NewImage(b.Dx()*scale, b.Dy()*scale)
-	if err := r.Draw(dst, frame, tv, 0, 0, scale); err != nil {
+	var geoM ebiten.GeoM
+	geoM.Scale(float64(scale), float64(scale))
+	if err := r.Draw(dst, frame, tv, geoM); err != nil {
 		t.Fatal(err)
 	}
 	pixels := make([]byte, 4*dst.Bounds().Dx()*dst.Bounds().Dy())
@@ -51,12 +53,31 @@ func draw(t *testing.T, r *Renderer, tv *kinescope.TV, frame *ebiten.Image, scal
 // The shader's geometry and TV.Map must agree: a pointer mapped by Map
 // lands on the pixel the screen shows under it.
 func TestShaderGeometryMatchesMap(t *testing.T) {
-	tv, err := kinescope.NewTV(kinescope.Setup{
-		Effects: []kinescope.Effect{
-			&kinescope.Curvature{X: 0.1, Y: 0.15},
-			&kinescope.Tear{Strength: 1, Amplitude: 3},
-		},
-	})
+	// Outside the picture the cabinet paints: only a full blue is the frame
+	geometryMatchesMap(t, func(blue byte) bool { return blue == 255 },
+		&kinescope.Cabinet{Margin: 0.1},
+		&kinescope.Power{Width: 0.8, Height: 0.9},
+		&kinescope.Curvature{X: 0.1, Y: 0.15},
+		&kinescope.Degauss{Strength: 0.6},
+		&kinescope.Tear{Strength: 1, Amplitude: 3},
+	)
+}
+
+func TestRollMatchesMap(t *testing.T) {
+	// The blanking bar darkens the frame: any blue is the frame
+	geometryMatchesMap(t, func(blue byte) bool { return blue > 0 },
+		&kinescope.Roll{Strength: 0.3})
+}
+
+// geometryMatchesMap draws the coordinate frame through effects and checks
+// every screen pixel against Map; onFrame tells a frame pixel by its blue.
+func geometryMatchesMap(
+	t *testing.T,
+	onFrame func(blue byte) bool,
+	effects ...kinescope.Effect,
+) {
+	t.Helper()
+	tv, err := kinescope.NewTV(kinescope.Setup{Effects: effects})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,15 +90,16 @@ func TestShaderGeometryMatchesMap(t *testing.T) {
 	for y := range frameH {
 		for x := range frameW {
 			mx, my := tv.Map(float64(x)+0.5, float64(y)+0.5, frameW, frameH)
+			// Right at the picture's edge, rounding and the soft edges of
+			// the cabinet and the roll's blanking bar decide
+			if nearEdge(mx, my) {
+				continue
+			}
 			i := 4 * (y*frameW + x)
-			inside := pixels[i+2] == 255
+			inside := onFrame(pixels[i+2])
 			wantInside := mx >= 0 && my >= 0 && mx < frameW && my < frameH
 			if inside != wantInside {
-				// Right at the picture's edge, float precision decides
-				if !nearEdge(mx, my) {
-					t.Fatalf("(%d, %d): inside %v, Map says %v (%.2f, %.2f)", x, y, inside, wantInside, mx, my)
-				}
-				continue
+				t.Fatalf("(%d, %d): inside %v, Map says %v (%.2f, %.2f)", x, y, inside, wantInside, mx, my)
 			}
 			if !inside {
 				continue
@@ -100,9 +122,11 @@ func TestShaderGeometryMatchesMap(t *testing.T) {
 }
 
 func nearEdge(x, y float64) bool {
-	const e = 0.01
-	return math.Abs(x) < e || math.Abs(y) < e ||
-		math.Abs(x-frameW) < e || math.Abs(y-frameH) < e
+	const e = 1.5
+	// The roll's blanking bar darkens the top and bottom twentieth
+	const bar = 0.05 * frameH
+	return math.Abs(x) < e || math.Abs(x-frameW) < e ||
+		math.Abs(y) < bar || math.Abs(y-frameH) < bar
 }
 
 func TestGorizontDrawsAPicture(t *testing.T) {

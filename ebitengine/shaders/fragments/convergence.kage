@@ -1,6 +1,7 @@
-// convergence reads the red and blue guns out of register: their beams
-// part towards the edges of the screen.
+// convergence gathers the red and blue guns out of register: their beams
+// part towards the edges of the screen and drift apart sideways.
 func convergence(pos vec2, size vec2) vec3 {
-	shift := (pos/size*2 - 1) * ConvergenceAmount
-	return vec3(frame(pos+shift).r, frame(pos).g, frame(pos-shift).b)
+	e := pos/size*2 - 1
+	shift := e*ConvergenceAmount + vec2(ConvergenceOffset*(1+dot(e, e))/2, 0)
+	return vec3(read(pos+shift).r, read(pos).g, read(pos-shift).b)
 }

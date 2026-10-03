@@ -7,6 +7,8 @@ const (
 	FlickerFrequency ParamKey = "flicker.frequency"
 	HumStrength      ParamKey = "hum.strength"
 	HumPeriod        ParamKey = "hum.period"
+	HumWidth         ParamKey = "hum.width"
+	SnowStrength     ParamKey = "snow.strength"
 	VignetteStrength ParamKey = "vignette.strength"
 	CornersRadius    ParamKey = "corners.radius"
 )
@@ -17,6 +19,7 @@ var (
 	_ Effect = (*Hum)(nil)
 	_ Effect = (*Vignette)(nil)
 	_ Effect = (*Corners)(nil)
+	_ Effect = (*Snow)(nil)
 )
 
 // Grain is the signal's snow: fine noise, new every frame, seen on black
@@ -54,21 +57,24 @@ func (e *Flicker) Params() []Param {
 }
 func (e *Flicker) clone() Effect { c := *e; return &c }
 
-// Hum is the mains hum: a light bar rolling slowly down the picture.
+// Hum is the mains hum: a bar rolling slowly down the picture, light or
+// dark.
 type Hum struct {
-	Strength float32 // how much brighter the bar is
+	Strength float32 // how much brighter the bar is; below zero, darker
 	Period   float32 // seconds the bar takes to cross the picture
+	Width    float32 // the bar's width, in the picture's heights
 }
 
-// NewHum is a faint bar crossing every eight seconds.
-func NewHum() *Hum { return &Hum{Strength: 0.025, Period: 8} }
+// NewHum is a faint thin light bar crossing every eight seconds.
+func NewHum() *Hum { return &Hum{Strength: 0.025, Period: 8, Width: 0.05} }
 
 func (*Hum) Name() string { return "hum" }
 func (*Hum) Stage() Stage { return StagePost }
 func (e *Hum) Params() []Param {
 	return []Param{
-		{Key: HumStrength, Min: 0, Max: 0.5, Value: &e.Strength},
+		{Key: HumStrength, Min: -0.5, Max: 0.5, Value: &e.Strength},
 		{Key: HumPeriod, Min: 0.5, Max: 60, Value: &e.Period},
+		{Key: HumWidth, Min: 0.01, Max: 1, Value: &e.Width},
 	}
 }
 func (e *Hum) clone() Effect { c := *e; return &c }
@@ -102,3 +108,19 @@ func (e *Corners) Params() []Param {
 	return []Param{{Key: CornersRadius, Min: 0, Max: 48, Value: &e.Radius}}
 }
 func (e *Corners) clone() Effect { c := *e; return &c }
+
+// Snow is the screen drowning in snow, as when the signal is lost. Its
+// strength rests at zero and is driven by the Snow episode.
+type Snow struct {
+	Strength float32
+}
+
+// NewSnow is a clear signal.
+func NewSnow() *Snow { return &Snow{} }
+
+func (*Snow) Name() string { return "snow" }
+func (*Snow) Stage() Stage { return StagePost }
+func (e *Snow) Params() []Param {
+	return []Param{{Key: SnowStrength, Min: 0, Max: 1, Value: &e.Strength}}
+}
+func (e *Snow) clone() Effect { c := *e; return &c }

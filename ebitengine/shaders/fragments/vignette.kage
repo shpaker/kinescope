@@ -1,5 +1,5 @@
 // vignette dims the picture towards its corners.
-func vignette(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+func vignette(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
 	e := pos/size*2 - 1
 	return c * (1 - VignetteStrength*dot(e, e)*dot(e, e)*0.25)
 }

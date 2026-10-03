@@ -2,7 +2,10 @@
 
 // The picture pass, composed by kinescope from its effects' fragments.
 // Image 0 is the frame (after its afterglow), image 1 the glow, the same
-// size; positions are in frame pixels from the frame's corner.
+// size; positions are in frame pixels from the frame's corner. The pass
+// covers the whole screen: pos is the frame point a screen point shows
+// after the geometry, raw the one before it; outside the frame only the
+// frame stage draws.
 package main
 
 // Time is the TV's clock in seconds, Frame its Updates, Scale the screen
@@ -17,7 +20,9 @@ var CurvatureX float
 var CurvatureY float
 var TearStrength float
 var TearAmplitude float
+var TearBands float
 var ConvergenceAmount float
+var ConvergenceOffset float
 var GlowThreshold float
 var GlowStrength float
 var GlowRadius float
@@ -31,6 +36,7 @@ var FlickerStrength float
 var FlickerFrequency float
 var HumStrength float
 var HumPeriod float
+var HumWidth float
 var VignetteStrength float
 var CornersRadius float
 
@@ -58,11 +64,6 @@ func fine(minScale float) float {
 	return smoothstep(minScale-1, minScale, Scale)
 }
 
-// sample reads the frame at pos when no effect reads it otherwise.
-func sample(pos vec2, size vec2) vec3 {
-	return frame(pos)
-}
-
 // curvature bulges the glass: the picture bows out towards the corners.
 func curvature(pos vec2, size vec2) vec2 {
 	p := pos/size*2 - 1
@@ -78,25 +79,32 @@ const tearSlowSpeed = 54.0
 const tearFastAlong = 1.7
 const tearFastSpeed = 126.0
 
-// tear shifts the lines sideways in a running wave.
+// tear shifts the lines sideways: in a running wave, and in bands of six
+// lines, about half of them torn by a random shift that changes 40 times a
+// second.
 func tear(pos vec2, size vec2) vec2 {
 	wave := 0.7*sin(pos.y*tearSlowAlong+Time*tearSlowSpeed) +
 		0.3*sin(pos.y*tearFastAlong-Time*tearFastSpeed)
-	return vec2(pos.x+TearStrength*TearAmplitude*wave, pos.y)
+	line := floor(pos.y)
+	torn := step(0.55, hash(vec2(floor(line/6), floor(Time*15))))
+	band := (hash(vec2(line, floor(Time*40))) - 0.5) * torn
+	shift := TearAmplitude*wave + TearBands*band
+	return vec2(pos.x+TearStrength*shift, pos.y)
 }
 
 
-// convergence reads the red and blue guns out of register: their beams
-// part towards the edges of the screen.
+// convergence gathers the red and blue guns out of register: their beams
+// part towards the edges of the screen and drift apart sideways.
 func convergence(pos vec2, size vec2) vec3 {
-	shift := (pos/size*2 - 1) * ConvergenceAmount
-	return vec3(frame(pos+shift).r, frame(pos).g, frame(pos-shift).b)
+	e := pos/size*2 - 1
+	shift := e*ConvergenceAmount + vec2(ConvergenceOffset*(1+dot(e, e))/2, 0)
+	return vec3(read(pos+shift).r, read(pos).g, read(pos-shift).b)
 }
 
 
 // glow adds the blurred bright areas (image 1, from the glow prepass),
 // read between its pixels so the soft light shows no steps.
-func glow(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+func glow(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
 	q := pos - 0.5
 	f := fract(q)
 	i := floor(q)
@@ -117,7 +125,7 @@ func glowTexel(i vec2, size vec2) vec3 {
 // glass is the tube's glass catching the room's light: a cold sheen over
 // the whole screen and a soft reflection in the upper left corner. Bright
 // picture covers it.
-func glass(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+func glass(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
 	e := pos/size*2 - 1
 	r := e - vec2(-0.45, -0.55)
 	sheen := GlassLevel * (vec3(0.9, 1, 1) + 1.5*exp(-dot(r, r)*6))
@@ -127,7 +135,7 @@ func glass(c vec3, pos vec2, size vec2, screen vec2) vec3 {
 
 // scanlines darkens the gaps between the beam's lines, one line per frame
 // row: a bright beam runs wider, and its gap is narrower.
-func scanlines(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+func scanlines(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
 	depth := ScanlinesDepth * fine(ScanlinesMinScale) * (1 - 0.6*clamp(luma(c), 0, 1))
 	s := sin(pi * fract(pos.y))
 	return c * mix(1-depth, 1+depth*0.2, s*s)
@@ -136,7 +144,7 @@ func scanlines(c vec3, pos vec2, size vec2, screen vec2) vec3 {
 
 // apertureMask is the phosphor's red, green and blue stripes, one triad per
 // three screen pixels; it keeps the average brightness.
-func apertureMask(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+func apertureMask(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
 	dim := 1 - ApertureMaskStrength*fine(ApertureMaskMinScale)
 	m := vec3(dim)
 	column := mod(floor(screen.x), 3)
@@ -153,7 +161,7 @@ func apertureMask(c vec3, pos vec2, size vec2, screen vec2) vec3 {
 
 // grain is the signal's snow, in cells of half a frame pixel, new every
 // frame; it shows on black too.
-func grain(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+func grain(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
 	cell := floor(pos * 2)
 	n := hash(cell+vec2(mod(Frame, 97)*13.1, mod(Frame, 89)*7.7)) - 0.5
 	return c*(1+n*GrainStrength*2) + n*GrainStrength
@@ -161,20 +169,20 @@ func grain(c vec3, pos vec2, size vec2, screen vec2) vec3 {
 
 
 // flicker trembles the whole picture's brightness.
-func flicker(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+func flicker(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
 	return c * (1 + FlickerStrength*sin(Time*2*pi*FlickerFrequency))
 }
 
 
-// hum is the mains hum: a light bar rolling slowly down the picture.
-func hum(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+// hum is the mains hum: a bar, light or dark, rolling slowly down the picture.
+func hum(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
 	bar := fract(pos.y/size.y-Time/HumPeriod) - 0.5
-	return c * (1 + HumStrength*exp(-bar*bar*400))
+	return c * (1 + HumStrength*exp(-bar*bar/(HumWidth*HumWidth)))
 }
 
 
 // vignette dims the picture towards its corners.
-func vignette(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+func vignette(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
 	e := pos/size*2 - 1
 	return c * (1 - VignetteStrength*dot(e, e)*dot(e, e)*0.25)
 }
@@ -182,7 +190,7 @@ func vignette(c vec3, pos vec2, size vec2, screen vec2) vec3 {
 
 // corners cuts the picture to a rectangle with rounded corners, the edge
 // fading over one frame pixel.
-func corners(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+func corners(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
 	half := size / 2
 	q := abs(pos-half) - (half - CornersRadius)
 	d := length(max(q, vec2(0))) - CornersRadius
@@ -190,23 +198,35 @@ func corners(c vec3, pos vec2, size vec2, screen vec2) vec3 {
 }
 
 
+// read is the frame at pos as the beam reads it: by the read effect, if
+// the TV has one, or pixel by pixel.
+func read(pos vec2) vec3 {
+	return frame(pos)
+}
+
+// sample gathers the picture at pos when no effect does it otherwise.
+func sample(pos vec2, size vec2) vec3 {
+	return read(pos)
+}
+
 func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 	size := imageSrc0Size()
-	pos := srcPos - imageSrc0Origin()
+	raw := srcPos - imageSrc0Origin()
+	pos := raw
 	pos = curvature(pos, size)
 	pos = tear(pos, size)
-	if pos.x < 0 || pos.y < 0 || pos.x >= size.x || pos.y >= size.y {
-		return vec4(0, 0, 0, 1)
+	c := vec3(0)
+	if pos.x >= 0 && pos.y >= 0 && pos.x < size.x && pos.y < size.y {
+		c = convergence(pos, size)
+		c = glow(c, pos, size, dstPos.xy, raw)
+		c = glass(c, pos, size, dstPos.xy, raw)
+		c = scanlines(c, pos, size, dstPos.xy, raw)
+		c = apertureMask(c, pos, size, dstPos.xy, raw)
+		c = grain(c, pos, size, dstPos.xy, raw)
+		c = flicker(c, pos, size, dstPos.xy, raw)
+		c = hum(c, pos, size, dstPos.xy, raw)
+		c = vignette(c, pos, size, dstPos.xy, raw)
 	}
-	c := convergence(pos, size)
-	c = glow(c, pos, size, dstPos.xy)
-	c = glass(c, pos, size, dstPos.xy)
-	c = scanlines(c, pos, size, dstPos.xy)
-	c = apertureMask(c, pos, size, dstPos.xy)
-	c = grain(c, pos, size, dstPos.xy)
-	c = flicker(c, pos, size, dstPos.xy)
-	c = hum(c, pos, size, dstPos.xy)
-	c = vignette(c, pos, size, dstPos.xy)
-	c = corners(c, pos, size, dstPos.xy)
+	c = corners(c, pos, size, dstPos.xy, raw)
 	return vec4(c, 1)
 }

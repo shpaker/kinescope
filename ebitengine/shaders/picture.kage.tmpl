@@ -2,7 +2,10 @@
 
 // The picture pass, composed by kinescope from its effects' fragments.
 // Image 0 is the frame (after its afterglow), image 1 the glow, the same
-// size; positions are in frame pixels from the frame's corner.
+// size; positions are in frame pixels from the frame's corner. The pass
+// covers the whole screen: pos is the frame point a screen point shows
+// after the geometry, raw the one before it; outside the frame only the
+// frame stage draws.
 package main
 
 // Time is the TV's clock in seconds, Frame its Updates, Scale the screen
@@ -37,22 +40,30 @@ func frame(pos vec2) vec3 {
 func fine(minScale float) float {
 	return smoothstep(minScale-1, minScale, Scale)
 }
-
-// sample reads the frame at pos when no effect reads it otherwise.
-func sample(pos vec2, size vec2) vec3 {
-	return frame(pos)
-}
 {{range .Fragments}}
 {{.}}
 {{end}}
+// read is the frame at pos as the beam reads it: by the read effect, if
+// the TV has one, or pixel by pixel.
+func read(pos vec2) vec3 {
+	return {{.Read}}(pos)
+}
+
+// sample gathers the picture at pos when no effect does it otherwise.
+func sample(pos vec2, size vec2) vec3 {
+	return read(pos)
+}
+
 func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 	size := imageSrc0Size()
-	pos := srcPos - imageSrc0Origin()
+	raw := srcPos - imageSrc0Origin()
+	pos := raw
 {{range .Geometry}}	pos = {{.}}(pos, size)
-{{end}}	if pos.x < 0 || pos.y < 0 || pos.x >= size.x || pos.y >= size.y {
-		return vec4(0, 0, 0, 1)
-	}
-	c := {{.Sample}}(pos, size)
-{{range .Color}}	c = {{.}}(c, pos, size, dstPos.xy)
+{{end}}	c := vec3(0)
+	if pos.x >= 0 && pos.y >= 0 && pos.x < size.x && pos.y < size.y {
+		c = {{.Sample}}(pos, size)
+{{range .Inside}}		c = {{.}}(c, pos, size, dstPos.xy, raw)
+{{end}}	}
+{{range .Frame}}	c = {{.}}(c, pos, size, dstPos.xy, raw)
 {{end}}	return vec4(c, 1)
 }

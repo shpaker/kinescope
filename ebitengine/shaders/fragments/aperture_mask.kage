@@ -1,6 +1,6 @@
 // apertureMask is the phosphor's red, green and blue stripes, one triad per
 // three screen pixels; it keeps the average brightness.
-func apertureMask(c vec3, pos vec2, size vec2, screen vec2) vec3 {
+func apertureMask(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
 	dim := 1 - ApertureMaskStrength*fine(ApertureMaskMinScale)
 	m := vec3(dim)
 	column := mod(floor(screen.x), 3)

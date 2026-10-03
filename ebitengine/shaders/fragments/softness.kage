@@ -1,0 +1,9 @@
+// softness reads a line of the frame with the beam spread between its
+// pixels: square at 0, blended smoothly at 1.
+func softness(pos vec2) vec3 {
+	x := pos.x - 0.5
+	x0 := floor(x)
+	f := x - x0
+	f = mix(step(0.5, f), smoothstep(0, 1, f), SoftnessAmount)
+	return mix(frame(vec2(x0, pos.y)), frame(vec2(x0+1, pos.y)), f)
+}

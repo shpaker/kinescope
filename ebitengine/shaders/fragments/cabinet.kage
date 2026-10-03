@@ -1,0 +1,38 @@
+// cabinet shrinks the picture within the frame's place, leaving room for
+// the monitor's case around it.
+func cabinet(pos vec2, size vec2) vec2 {
+	return size/2 + (pos-size/2)*(1+CabinetMargin)
+}
+
+// cabinetFrame shows the monitor around the glass: the tube's dark glass,
+// the beige plastic of the case and the dim room behind, in units of half
+// the picture's height.
+func cabinetFrame(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
+	if CabinetMargin <= 0 {
+		return c
+	}
+	inside := 1 - smoothstep(-0.5, 0.5, cabinetBox(pos-size/2, size/2, CabinetRadius))
+
+	p := (raw/size*2 - 1) * (1 + CabinetMargin)
+	h := vec2(size.x/size.y, 1)
+	a := p * h
+	glass := cabinetBox(a, h+0.2*CabinetMargin, 0.1)
+	shell := cabinetBox(a, h+CabinetMargin, 0.2)
+	around := vec3(0.02, 0.022, 0.025) * (1.6 - 0.6*abs(p.y))
+	if glass > 0 {
+		plastic := vec3(0.8, 0.77, 0.68) * (0.92 - 0.08*p.y)
+		plastic *= 1 + (hash(floor(a*300))-0.5)*0.03
+		plastic = mix(vec3(0.36, 0.34, 0.3), plastic, smoothstep(0, 0.05, glass))
+		plastic *= mix(0.8, 1, smoothstep(0, 0.02, -shell))
+		room := vec3(0.012, 0.012, 0.014)
+		around = mix(plastic, room, smoothstep(-0.002, 0.002, shell))
+	}
+	return mix(around, c, inside)
+}
+
+// cabinetBox is the signed distance from p to a box of half size h centered
+// on the origin, its corners rounded by r.
+func cabinetBox(p vec2, h vec2, r float) float {
+	d := abs(p) - h + r
+	return length(max(d, vec2(0))) + min(max(d.x, d.y), 0) - r
+}

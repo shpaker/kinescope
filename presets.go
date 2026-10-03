@@ -24,6 +24,45 @@ func Gorizont() Setup {
 	}
 }
 
+// Rubin is a Moscow color set of the eighties, well worn: a bulging tube
+// in a beige case, a soft beam through a slot mask, a dark hum rolling
+// through, plenty of snow — and a glitch every minute or two. Its case
+// shows in full margin; drive cabinet.margin from a signal to show it only
+// where there is room.
+func Rubin() Setup {
+	return Setup{
+		Effects: []Effect{
+			&Cabinet{Margin: 0.15, Radius: 15},
+			NewPower(),
+			&Curvature{X: 0.045, Y: 0.06},
+			NewDegauss(),
+			NewRoll(),
+			&Tear{Amplitude: 2, Bands: 18},
+			&Softness{Amount: 0.35},
+			&Convergence{Offset: 0.73},
+			&Glow{Threshold: 0, Strength: 0.25, Radius: 4},
+			&Scanlines{Depth: 0.45, MinScale: 2},
+			&Interlace{Strength: 0, MinScale: 2},
+			&SlotMask{Strength: 0.35, MinScale: 3},
+			&Grain{Strength: 0.05},
+			NewSnow(),
+			&Flicker{Strength: 0.0075, Frequency: 10},
+			&Hum{Strength: -0.13, Period: 14, Width: 0.3},
+			&Vignette{Strength: 0.7},
+			&Corners{Radius: 15},
+		},
+		Schedules: map[string]Every{
+			"glitches": {
+				Mean:   90,
+				Spread: 30,
+				Episodes: []Episode{
+					Jitter(), RollOver(), SnowBurst(), Degaussing(),
+				},
+			},
+		},
+	}
+}
+
 // Blend mixes two sets of values: t = 0 gives a, t = 1 gives b. A key found
 // in only one of them keeps its value. Use it for a single knob a player
 // turns from one preset to another:

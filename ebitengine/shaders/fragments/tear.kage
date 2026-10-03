@@ -5,9 +5,15 @@ const tearSlowSpeed = 54.0
 const tearFastAlong = 1.7
 const tearFastSpeed = 126.0
 
-// tear shifts the lines sideways in a running wave.
+// tear shifts the lines sideways: in a running wave, and in bands of six
+// lines, about half of them torn by a random shift that changes 40 times a
+// second.
 func tear(pos vec2, size vec2) vec2 {
 	wave := 0.7*sin(pos.y*tearSlowAlong+Time*tearSlowSpeed) +
 		0.3*sin(pos.y*tearFastAlong-Time*tearFastSpeed)
-	return vec2(pos.x+TearStrength*TearAmplitude*wave, pos.y)
+	line := floor(pos.y)
+	torn := step(0.55, hash(vec2(floor(line/6), floor(Time*15))))
+	band := (hash(vec2(line, floor(Time*40))) - 0.5) * torn
+	shift := TearAmplitude*wave + TearBands*band
+	return vec2(pos.x+TearStrength*shift, pos.y)
 }

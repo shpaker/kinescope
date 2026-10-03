@@ -335,3 +335,36 @@ func TestEffectsRegistry(t *testing.T) {
 		}
 	}
 }
+
+// A new TV is warm; PowerOn grows the picture from a dot with a flash,
+// PowerOff folds it away and the tube goes dark.
+func TestPower(t *testing.T) {
+	tv := newTV(t, Setup{Effects: []Effect{NewPower()}})
+	tv.Update(tick)
+	if w, h, f := tv.Value(PowerWidth), tv.Value(PowerHeight), tv.Value(PowerFlash); w != 1 || h != 1 || f != 0 {
+		t.Errorf("new TV: %v %v %v, want warm", w, h, f)
+	}
+
+	tv.PowerOn()
+	tv.Update(tick)
+	if w, h, f := tv.Value(PowerWidth), tv.Value(PowerHeight), tv.Value(PowerFlash); w >= 0.5 || h >= 0.1 || f <= 0 {
+		t.Errorf("warming: %v %v %v, want a flashing dot", w, h, f)
+	}
+	run(tv, 0.6)
+	if w, h, f := tv.Value(PowerWidth), tv.Value(PowerHeight), tv.Value(PowerFlash); w != 1 || h != 1 || f != 0 {
+		t.Errorf("warm: %v %v %v", w, h, f)
+	}
+
+	tv.PowerOff()
+	run(tv, 0.5)
+	if tv.Dark() {
+		t.Error("dark before the picture folded away")
+	}
+	run(tv, 0.25)
+	if !tv.Dark() {
+		t.Error("not dark after power off")
+	}
+	if w := tv.Value(PowerWidth); w != 0 {
+		t.Errorf("dead tube width %v", w)
+	}
+}

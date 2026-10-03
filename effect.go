@@ -11,7 +11,11 @@ const (
 	StagePrepass Stage = iota
 	// StageGeometry effects move the point of the frame a screen point shows.
 	StageGeometry
-	// StageSample effects change how the frame is read at that point.
+	// StageRead effects change how one point of the frame is read: the
+	// beam's softness between neighboring pixels. A TV has at most one.
+	StageRead
+	// StageSample effects change how the picture is gathered at that point
+	// from the frame: the guns out of register. A TV has at most one.
 	StageSample
 	// StageLight effects add light before the beam draws it: glow, glass.
 	StageLight
@@ -49,14 +53,22 @@ type Effect interface {
 func Effects() []Effect {
 	return []Effect{
 		NewAfterglow(),
+		NewCabinet(),
+		NewPower(),
 		NewCurvature(),
+		NewDegauss(),
+		NewRoll(),
 		NewTear(),
+		NewSoftness(),
 		NewConvergence(),
 		NewGlow(),
 		NewGlass(),
 		NewScanlines(),
+		NewInterlace(),
 		NewApertureMask(),
+		NewSlotMask(),
 		NewGrain(),
+		NewSnow(),
 		NewFlicker(),
 		NewHum(),
 		NewVignette(),

@@ -1,0 +1,8 @@
+// interlace fades the lines of the field not drawn this frame; the fields
+// take turns.
+func interlace(c vec3, pos vec2, size vec2, screen vec2, raw vec2) vec3 {
+	if mod(floor(pos.y)+Frame, 2) >= 1 {
+		return c * (1 - 0.5*InterlaceStrength*fine(InterlaceMinScale))
+	}
+	return c
+}

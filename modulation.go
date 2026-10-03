@@ -105,7 +105,7 @@ func Jitter() Episode {
 }
 
 // Ripple is the signal shivering as a channel is switched: the lines tear
-// a little and the grain thickens, both dying out.
+// a little, the grain thickens and snow flickers, all dying out.
 func Ripple() Episode {
 	return Episode{
 		Name:     "ripple",
@@ -113,7 +113,36 @@ func Ripple() Episode {
 		Targets: []Target{
 			{Param: TearStrength, Weight: 0.8},
 			{Param: GrainStrength, Weight: 0.15},
+			{Param: SnowStrength, Weight: 0.3},
 		},
+	}
+}
+
+// RollOver slips the picture a whole height down, as when the vertical
+// sync is lost, the blanking bar crossing with it.
+func RollOver() Episode {
+	return Episode{
+		Name:     "roll",
+		Envelope: Envelope{Attack: 0.8},
+		Targets:  []Target{{Param: RollStrength, Weight: 1}},
+	}
+}
+
+// SnowBurst drowns the picture in snow for a moment.
+func SnowBurst() Episode {
+	return Episode{
+		Name:     "snow",
+		Envelope: Envelope{Attack: 0.175, Release: 0.175},
+		Targets:  []Target{{Param: SnowStrength, Weight: 1}},
+	}
+}
+
+// Degaussing is the coil shaking the mask: the picture wobbles and settles.
+func Degaussing() Episode {
+	return Episode{
+		Name:     "degauss",
+		Envelope: Envelope{Release: 1.4},
+		Targets:  []Target{{Param: DegaussStrength, Weight: 1}},
 	}
 }
 
