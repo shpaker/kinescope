@@ -9,6 +9,13 @@ torn lines, a shiver when the channel changes. Drawn with
 and off, move their sliders, give the set moods, drop your own screenshot on
 it, then share the setup as a link or copy it as Go.
 
+## Used in
+
+- [tnk9x](https://github.com/shpaker/tnk9x) — tanks from the 90s the way we
+  remember them, with real-time 2D lighting; the `Gorizont` set.
+- [modern-robinson](https://github.com/shpaker/modern-robinson) — a remake of
+  the 1999 quest «Новый Робинзон»; the `Rubin` set in its beige case.
+
 ## Quick start
 
 ```go
