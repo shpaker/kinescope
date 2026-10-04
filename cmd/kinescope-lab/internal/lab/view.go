@@ -227,7 +227,29 @@ func (l *Lab) warnings() map[string]string {
 			warnings[fmt.Sprintf("drive:%d", i)] = fmt.Sprintf("The TV has no %s effect: this drive does nothing.", effect)
 		}
 	}
+	for _, s := range l.schedules {
+		var idle []string
+		for _, name := range s.Episodes {
+			if e, ok := findEpisode(name); ok && !l.moves(e.make()) {
+				idle = append(idle, name)
+			}
+		}
+		if len(idle) > 0 {
+			warnings["schedule:"+s.Name] = fmt.Sprintf("The TV has none of the effects %s moves: it shows nothing.",
+				strings.Join(idle, " and "))
+		}
+	}
 	return warnings
+}
+
+// moves tells whether an episode moves a param of the setup's effects.
+func (l *Lab) moves(e kinescope.Episode) bool {
+	for _, target := range e.Targets {
+		if _, err := l.param(target.Param); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // Live are the values now, the modulation on.

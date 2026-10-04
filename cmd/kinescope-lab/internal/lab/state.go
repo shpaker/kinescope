@@ -1,9 +1,13 @@
 package lab
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"maps"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/shpaker/kinescope"
@@ -68,37 +72,57 @@ func (l *Lab) State() string {
 // Load takes a setup State made, "s=<base64>", or the same JSON as it is,
 // "j=<JSON>", percent-encoded or not: the form for people and agents who
 // write links by hand. In JSON a missing format is the current one, and a
-// preset with no effects is that preset as it is, on the seed given if any. What Load cannot read it
-// leaves alone; an effect it does not know it skips.
+// preset with no effects is that preset as it is, on the seed given if any.
+// What Load cannot read it leaves alone and tells, as the view's notice.
 func (l *Lab) Load(text string) {
-	s, ok := readState(strings.TrimPrefix(text, "#"))
-	if !ok {
+	text = strings.TrimPrefix(text, "#")
+	if text == "" {
 		return
 	}
+	s, err := readState(text)
+	if err != nil {
+		l.notice = "The link was not read: " + err.Error()
+		return
+	}
+	var skipped []string
+	skip := func(err error) { skipped = append(skipped, err.Error()) }
+	defer func() {
+		if len(skipped) > 0 {
+			l.notice = "The link's skipped: " + strings.Join(skipped, "; ")
+		}
+	}()
 
 	l.picture = defaultPicture
 	if s.Picture != nil {
-		_ = l.setPicture(s.Picture) // a picture it does not know leaves the default
+		if err := l.setPicture(s.Picture); err != nil {
+			skip(err)
+		}
 	}
-	if len(s.Effects) == 0 {
-		if p, ok := findPreset(s.Preset); ok {
-			l.usePreset(p)
-			if s.Seed != 0 && s.Seed != l.seed {
-				l.seed, l.preset = s.Seed, "" // the preset no more, as with the seed's field
-				l.rebuild()
-			}
+	if len(s.Effects) == 0 && s.Preset != "" {
+		p, ok := findPreset(s.Preset)
+		if !ok {
+			skip(fmt.Errorf("no preset %q", s.Preset))
 			return
 		}
+		l.usePreset(p)
+		if s.Seed != 0 && s.Seed != l.seed {
+			l.seed, l.preset = s.Seed, "" // the preset no more, as with the seed's field
+			l.rebuild()
+		}
+		return
 	}
 
 	setup := kinescope.Setup{Seed: s.Seed}
 	values := make(map[kinescope.ParamKey]float32)
 	for _, se := range s.Effects {
-		if e := newEffect(se.Name); e != nil {
-			setup.Effects = append(setup.Effects, e)
-			for key, value := range se.Values {
-				values[key] = value
-			}
+		e := newEffect(se.Name)
+		if e == nil {
+			skip(fmt.Errorf("no effect %q", se.Name))
+			continue
+		}
+		setup.Effects = append(setup.Effects, e)
+		for key, value := range se.Values {
+			values[key] = value
 		}
 	}
 	for _, d := range s.Drives {
@@ -108,27 +132,45 @@ func (l *Lab) Load(text string) {
 	l.take(setup)
 	l.sources = l.sources[:0]
 	for _, src := range s.Sources {
-		if _, ok := sourceNamesByKind[src.Kind]; ok {
-			l.sources = append(l.sources, src)
+		if _, ok := sourceNamesByKind[src.Kind]; !ok {
+			skip(fmt.Errorf("no kind of source %q", src.Kind))
+			continue
 		}
+		l.sources = append(l.sources, src)
 	}
-	l.schedules = append(l.schedules[:0], s.Schedules...)
-	for i := range l.schedules {
-		if l.schedules[i].Episodes == nil {
-			l.schedules[i].Episodes = []string{}
+	l.schedules = l.schedules[:0]
+	for _, sc := range s.Schedules {
+		known := []string{}
+		for _, name := range sc.Episodes {
+			if _, ok := findEpisode(name); !ok {
+				skip(fmt.Errorf("no episode %q", name))
+				continue
+			}
+			known = append(known, name)
 		}
+		sc.Episodes = known
+		l.schedules = append(l.schedules, sc)
 	}
-	for key, value := range values {
-		if p, err := l.param(key); err == nil {
-			*p.Value = min(max(value, p.Min), p.Max)
+	for _, key := range slices.Sorted(maps.Keys(values)) {
+		p, err := l.param(key)
+		if err != nil {
+			skip(err)
+			continue
 		}
+		value := values[key]
+		if value < p.Min || value > p.Max {
+			value = min(max(value, p.Min), p.Max)
+			skip(fmt.Errorf("%s out of %g…%g, set to %g", key, p.Min, p.Max, value))
+		}
+		*p.Value = value
 	}
 	l.preset = s.Preset
 	l.rebuild()
 }
 
-// readState reads a state in either form, and whether it could.
-func readState(text string) (state, bool) {
+// readState reads a state in either form. A field it does not know is an
+// error: it is most likely a slip.
+func readState(text string) (state, error) {
 	var s state
 	var data []byte
 	if j, ok := strings.CutPrefix(text, "j="); ok {
@@ -140,11 +182,16 @@ func readState(text string) (state, bool) {
 		var err error
 		data, err = base64.RawURLEncoding.DecodeString(strings.TrimPrefix(text, "s="))
 		if err != nil {
-			return state{}, false
+			return state{}, fmt.Errorf("not base64: %w", err)
 		}
 	}
-	if len(data) == 0 || json.Unmarshal(data, &s) != nil || s.Format != stateFormat {
-		return state{}, false
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&s); err != nil {
+		return state{}, fmt.Errorf("%s", strings.TrimPrefix(err.Error(), "json: "))
 	}
-	return s, true
+	if s.Format != stateFormat {
+		return state{}, fmt.Errorf("format %d, not %d", s.Format, stateFormat)
+	}
+	return s, nil
 }

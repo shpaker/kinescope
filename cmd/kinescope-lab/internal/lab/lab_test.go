@@ -90,6 +90,30 @@ func TestJSONPresetIsTakenAsItIs(t *testing.T) {
 	}
 }
 
+func TestLinkTellsWhatItSkips(t *testing.T) {
+	for _, c := range []struct{ link, notice string }{
+		{`j={"preset":"Rubn"}`, `The link's skipped: no preset "Rubn"`},
+		{`j={"effects":[{"name":"grian"},{"name":"grain","values":{"grain.amount":1,"grain.strength":5}}]}`,
+			`The link's skipped: no effect "grian"; no param "grain.amount"; grain.strength out of 0…0.5, set to 0.5`},
+		{`j={"sources":[{"name":"x","kind":"noise"}],"schedules":[{"name":"g","mean":5,"spread":1,"rate":1,"episodes":["boom"]}]}`,
+			`The link's skipped: no kind of source "noise"; no episode "boom"`},
+		{`j={"effect":[]}`, `The link was not read: unknown field "effect"`},
+		{`j={"preset":`, `The link was not read: unexpected EOF`},
+	} {
+		l := New("v0.0.0", c.link)
+		if got := l.View().Notice; got != c.notice {
+			t.Errorf("%s:\n got %s\nwant %s", c.link, got, c.notice)
+		}
+	}
+}
+
+func TestIdleEpisodeWarns(t *testing.T) {
+	l := New("v0.0.0", `j={"effects":[{"name":"grain"}],"schedules":[{"name":"g","mean":5,"spread":1,"rate":1,"episodes":["jitter","ripple"]}]}`)
+	if got, want := l.warnings()["schedule:g"], "The TV has none of the effects jitter moves: it shows nothing."; got != want {
+		t.Errorf("warning %q, want %q", got, want)
+	}
+}
+
 func TestBadStateIsIgnored(t *testing.T) {
 	for _, state := range []string{"", "#%%%", "on=grain&grain.strength=1", "s=e30"} {
 		l := New("v0.0.0", state)

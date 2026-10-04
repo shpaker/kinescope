@@ -29,6 +29,13 @@ function run(command) {
   if (view.notice) toast(view.notice);
 }
 
+// load takes the address's setup: what the link held that the lab could not
+// take is told.
+function load(address) {
+  view = JSON.parse(bridge.load(address));
+  if (view.notice) toast(view.notice);
+}
+
 function connect() {
   const found = frame.contentWindow && frame.contentWindow.kinescope;
   if (!found) {
@@ -36,7 +43,8 @@ function connect() {
     return;
   }
   bridge = found;
-  view = JSON.parse(location.hash ? bridge.load(location.hash) : bridge.view());
+  if (location.hash) load(location.hash);
+  else view = JSON.parse(bridge.view());
   history.reset(bridge.state());
   render();
   requestAnimationFrame(liveLoop);
@@ -46,7 +54,7 @@ function connect() {
 // a change. The lab's own address writes do not fire it.
 window.addEventListener("hashchange", () => {
   if (!bridge || !location.hash) return;
-  view = JSON.parse(bridge.load(location.hash));
+  load(location.hash);
   history.push(bridge.state());
   render();
 });
@@ -229,12 +237,13 @@ function scheduleHTML(s) {
   const head = `<span class="name">${esc(s.name)}</span><span class="meta">every ${s.mean}±${s.spread}s · ${s.episodes.length} episodes</span>`;
   const episodes = view.catalog.episodes.map((e) =>
     `<label title="${esc(e.doc)}"><input type="checkbox" data-episode="${e.name}" data-schedule="${esc(s.name)}"${s.episodes.includes(e.name) ? " checked" : ""}>${e.name}</label>`).join("");
-  const body = `<div class="row"><label>name</label><input type="text" value="${esc(s.name)}" data-rename-schedule="${esc(s.name)}"></div>
+  let body = `<div class="row"><label>name</label><input type="text" value="${esc(s.name)}" data-rename-schedule="${esc(s.name)}"></div>
     <div class="row"><label>mean</label><input type="number" min="0.1" step="1" value="${s.mean}" data-schedule-field="mean" data-schedule="${esc(s.name)}"> s</div>
     <div class="row"><label>spread</label><input type="number" min="0" step="1" value="${s.spread}" data-schedule-field="spread" data-schedule="${esc(s.name)}"> s</div>
     <div class="row"><label>rate</label><input type="number" min="0" max="10" step="0.1" value="${s.rate}" data-schedule-field="rate" data-schedule="${esc(s.name)}">
       <span class="doc">1 keeps the pace; a drive to rate.${esc(s.name)} moves it</span></div>
     <div class="checks">${episodes}</div>`;
+  if (view.warnings[s.id]) body += `<div class="note">${esc(view.warnings[s.id])}</div>`;
   return itemHTML(s.id, head, body, { remove: { op: "removeSchedule", name: s.name } });
 }
 
@@ -503,7 +512,7 @@ function toast(text) {
   t.textContent = text;
   t.classList.add("shown");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("shown"), 1600);
+  toastTimer = setTimeout(() => t.classList.remove("shown"), 1600 + 40 * text.length);
 }
 
 // Helpers
