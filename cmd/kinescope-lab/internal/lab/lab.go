@@ -32,6 +32,9 @@ type Lab struct {
 	held   bool
 	off    bool
 
+	// How the picture is shown
+	picture Picture
+
 	// What went wrong: the setup's error, while it stands, and a
 	// command's, shown once
 	err    error
@@ -55,14 +58,25 @@ type schedule struct {
 	Episodes []string `json:"episodes"`
 }
 
+// Picture is how the lab shows its picture: which one, at what scale, and
+// whether through the TV.
+type Picture struct {
+	Source string `json:"source"` // one of pictures
+	Scale  int    `json:"scale"`  // screen pixels per frame pixel, one of scales; 0 fits the screen
+	Bypass bool   `json:"bypass"` // the picture without the TV
+}
+
 // New starts a lab on the first preset, then on what the state says. A
 // state it cannot read leaves it on the preset.
 func New(version, state string) *Lab {
-	l := &Lab{version: version, levels: make(map[string]float32)}
+	l := &Lab{version: version, levels: make(map[string]float32), picture: defaultPicture}
 	l.usePreset(presets[0])
 	l.Load(state)
 	return l
 }
+
+// Picture is how the picture is shown.
+func (l *Lab) Picture() Picture { return l.picture }
 
 // TV is the TV built from the setup. A setup that does not hold together
 // leaves the last TV that did.
@@ -213,6 +227,9 @@ type Command struct {
 	Seed   *uint64  `json:"seed"`
 
 	Episodes []string `json:"episodes"`
+
+	// How the picture is shown
+	Picture *Picture `json:"picture"`
 }
 
 // Do runs a command. A command that cannot be done is reported once, as
@@ -251,15 +268,18 @@ func (l *Lab) do(c Command) error {
 		l.tv.Reset()
 		return nil
 
+	// How the picture is shown: it leaves the setup alone too
+	case "picture":
+		return l.setPicture(c.Picture)
+
 	// The setup as a whole
 	case "preset":
-		for _, p := range presets {
-			if p.name == c.Name {
-				l.usePreset(p)
-				return nil
-			}
+		p, ok := findPreset(c.Name)
+		if !ok {
+			return fmt.Errorf("no preset %q", c.Name)
 		}
-		return fmt.Errorf("no preset %q", c.Name)
+		l.usePreset(p)
+		return nil
 	case "seed":
 		if c.Seed == nil {
 			return fmt.Errorf("no seed")
@@ -343,6 +363,21 @@ func (l *Lab) edit(c Command) error {
 	default:
 		return fmt.Errorf("no command %q", c.Op)
 	}
+	return nil
+}
+
+// Picture
+
+func (l *Lab) setPicture(p *Picture) error {
+	switch {
+	case p == nil:
+		return fmt.Errorf("no picture")
+	case !slices.Contains(pictures, p.Source):
+		return fmt.Errorf("no picture %q", p.Source)
+	case !slices.Contains(scales, p.Scale):
+		return fmt.Errorf("no scale %d", p.Scale)
+	}
+	l.picture = *p
 	return nil
 }
 

@@ -158,7 +158,11 @@ that the shader's geometry agrees with `TV.Map` pixel for pixel.
 
 The lab is a web page: [shpaker.github.io/kinescope](https://shpaker.github.io/kinescope/).
 Its sections are a `Setup`'s; the Go panel beside them is the same setup as
-code to paste into a game. To run it locally:
+code to paste into a game. The address keeps the setup and the picture, so a
+link shares both. A link can be written by hand or by an agent, as JSON:
+`https://shpaker.github.io/kinescope/#j={"preset":"Rubin"}`; the format and
+everything a setup can be made of are in
+[llms.txt](https://shpaker.github.io/kinescope/llms.txt). To run it locally:
 
 ```bash
 just serve-web   # http://localhost:8080

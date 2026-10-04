@@ -11,6 +11,8 @@
     <h1>kinescope lab</h1>
     <span class="version" id="version"></span>
     <button class="ghost" id="go-get" title="Copy the go get line">go get</button>
+    <a class="ghost" href="https://github.com/shpaker/kinescope" target="_blank" rel="noopener">GitHub</a>
+    <a class="ghost" href="llms.txt" target="_blank" title="How an agent writes a link to a setup">for agents</a>
     <span class="spacer"></span>
     <label>Preset <select id="preset"></select></label>
     <label>Seed <input type="number" id="seed" min="0" step="1"></label>
@@ -26,9 +28,9 @@
       <iframe id="frame" src="screen.html" title="The picture through the TV"></iframe>
       <div class="strip" id="picture">
         <label>Picture <select id="source">
-          <option value="0">Test card</option>
-          <option value="1">Moving scene</option>
-          <option value="2">Dropped picture</option>
+          <option value="test-card">Test card</option>
+          <option value="scene">Moving scene</option>
+          <option value="dropped">Dropped picture</option>
         </select></label>
         <label>Scale <select id="scale">
           <option value="0">fit</option>

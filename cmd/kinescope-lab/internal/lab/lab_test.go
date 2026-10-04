@@ -1,6 +1,8 @@
 package lab
 
 import (
+	"encoding/base64"
+	"net/url"
 	"reflect"
 	"slices"
 	"testing"
@@ -43,6 +45,48 @@ func TestStateRoundTrip(t *testing.T) {
 	}
 	if got := again.TV().Value(kinescope.ScanlinesDepth); got != 0.5 {
 		t.Errorf("scanlines depth = %v, want 0.5", got)
+	}
+}
+
+func TestStateKeepsThePicture(t *testing.T) {
+	l := New("v0.0.0", "")
+	l.Do(Command{Op: "picture", Picture: &Picture{Source: PictureScene, Scale: 3, Bypass: true}})
+	again := New("v0.0.0", l.State())
+	if got, want := again.Picture(), (Picture{Source: PictureScene, Scale: 3, Bypass: true}); got != want {
+		t.Errorf("picture %+v, want %+v", got, want)
+	}
+}
+
+func TestUnknownPictureIsTheTestCard(t *testing.T) {
+	l := New("v0.0.0", `j={"preset":"Rubin","picture":{"source":"tv","scale":7}}`)
+	if l.Picture() != defaultPicture {
+		t.Errorf("picture %+v, want the default", l.Picture())
+	}
+	if l.preset != "Rubin" {
+		t.Errorf("preset %q, want Rubin", l.preset)
+	}
+}
+
+func TestJSONStateIsTheSame(t *testing.T) {
+	l := worn(t)
+	data, err := base64.RawURLEncoding.DecodeString(l.State())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, text := range []string{"#j=" + string(data), "#j=" + url.PathEscape(string(data))} {
+		if got := New("v0.0.0", text).State(); got != l.State() {
+			t.Errorf("%s: not the same lab", text)
+		}
+	}
+}
+
+func TestJSONPresetIsTakenAsItIs(t *testing.T) {
+	l := New("v0.0.0", `#j={"preset":"Rubin","seed":3}`)
+	want := New("v0.0.0", "")
+	want.Do(Command{Op: "preset", Name: "Rubin"})
+	want.Do(Command{Op: "seed", Seed: ptr[uint64](3)})
+	if l.State() != want.State() {
+		t.Error("not Rubin on seed 3")
 	}
 }
 

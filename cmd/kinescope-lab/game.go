@@ -28,9 +28,9 @@ type game struct {
 	lab      *lab.Lab
 	renderer *ebitengine.Renderer
 
-	// Sources: the test card, the moving scene and a dropped picture
-	sources []source
-	picture picture
+	// Sources by the lab's pictures: the test card, the moving scene and a
+	// dropped picture, once there is one
+	sources map[string]source
 
 	// failed stops the TV after its shader would not compile
 	failed bool
@@ -43,27 +43,30 @@ type game struct {
 
 var _ ebiten.Game = (*game)(nil)
 
-// picture is how the page wants the picture shown.
-type picture struct {
-	Source  int  `json:"source"`  // 0 the test card, 1 the scene, 2 the dropped picture
-	Scale   int  `json:"scale"`   // screen pixels per frame pixel; 0 fits the screen
-	Bypass  bool `json:"bypass"`  // the picture without the TV
-	Dropped bool `json:"dropped"` // a picture has been dropped
-}
-
 func newGame(l *lab.Lab, r *ebitengine.Renderer) *game {
 	return &game{
 		lab:      l,
 		renderer: r,
-		sources:  []source{newTestCard(), newScene(), nil},
+		sources: map[string]source{
+			lab.PictureTestCard: newTestCard(),
+			lab.PictureScene:    newScene(),
+		},
 	}
 }
 
+// source is the picture the lab shows; the test card while there is no
+// dropped picture.
 func (g *game) source() source {
-	if s := g.sources[g.picture.Source]; s != nil {
+	if s, ok := g.sources[g.lab.Picture().Source]; ok {
 		return s
 	}
-	return g.sources[0]
+	return g.sources[lab.PictureTestCard]
+}
+
+// dropped tells whether a picture has been dropped.
+func (g *game) dropped() bool {
+	_, ok := g.sources[lab.PictureDropped]
+	return ok
 }
 
 func (g *game) Update() error {
@@ -96,8 +99,10 @@ func (g *game) takeDroppedPicture() {
 		log.Print(err)
 		return
 	}
-	g.sources[2] = &still{img: ebiten.NewImageFromImage(img)}
-	g.picture.Source, g.picture.Dropped = 2, true
+	g.sources[lab.PictureDropped] = &still{img: ebiten.NewImageFromImage(img)}
+	picture := g.lab.Picture()
+	picture.Source = lab.PictureDropped
+	g.lab.Do(lab.Command{Op: "picture", Picture: &picture})
 }
 
 func (g *game) Draw(screen *ebiten.Image) {
@@ -107,7 +112,7 @@ func (g *game) Draw(screen *ebiten.Image) {
 	frame := g.source().frame()
 	geoM := g.place(frame.Bounds().Size())
 
-	if g.picture.Bypass || g.failed {
+	if g.lab.Picture().Bypass || g.failed {
 		screen.DrawImage(frame, &ebiten.DrawImageOptions{GeoM: geoM})
 	} else if err := g.renderer.Draw(screen, frame, g.lab.TV(), geoM); err != nil {
 		log.Print(err)
@@ -119,8 +124,9 @@ func (g *game) Draw(screen *ebiten.Image) {
 // number.
 func (g *game) place(frame image.Point) ebiten.GeoM {
 	w, h := int(g.screenWidth), int(g.screenHeight)
-	scale := g.picture.Scale * max(1, int(math.Round(g.displayScale)))
-	if g.picture.Scale == 0 {
+	picture := g.lab.Picture()
+	scale := picture.Scale * max(1, int(math.Round(g.displayScale)))
+	if picture.Scale == 0 {
 		scale = max(1, min(w/frame.X, h/frame.Y))
 	}
 	var geoM ebiten.GeoM
