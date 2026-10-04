@@ -21,7 +21,7 @@ var llmsExamples = []struct{ what, json string }{
 		`{"preset":"Gorizont","picture":{"source":"scene","scale":3}}`},
 	{"A worn set: reception drifting over 20 s thickens the grain, glitches every 6–14 s",
 		`{"seed":7,"effects":[{"name":"curvature"},{"name":"scanlines","values":{"scanlines.depth":0.6}},` +
-			`{"name":"grain","values":{"grain.strength":0.05}},{"name":"jitter"},{"name":"ripple"},{"name":"vignette"}],` +
+			`{"name":"grain","values":{"grain.strength":0.05}},{"name":"tear"},{"name":"snow"},{"name":"vignette"}],` +
 			`"sources":[{"name":"reception","kind":"drift","period":20}],` +
 			`"drives":[{"from":"reception","to":"grain.strength","weight":0.2}],` +
 			`"schedules":[{"name":"glitches","mean":10,"spread":4,"rate":1,"episodes":["jitter","ripple"]}]}`},
@@ -54,8 +54,8 @@ func TestLLMsExamplesLoad(t *testing.T) {
 	for _, e := range llmsExamples {
 		l := New("v0.0.0", "")
 		l.Load(llmsAddress(e.json))
-		if l.err != nil || len(l.badItems()) > 0 || len(l.warnings()) > 0 {
-			t.Errorf("%s: %v %v %v", e.what, l.err, l.badItems(), l.warnings())
+		if l.err != nil || l.notice != "" || len(l.badItems()) > 0 || len(l.warnings()) > 0 {
+			t.Errorf("%s: %v %q %v %v", e.what, l.err, l.notice, l.badItems(), l.warnings())
 		}
 		if l.State() == first {
 			t.Errorf("%s: the lab's first preset", e.what)
@@ -91,8 +91,10 @@ func generateLLMsText() []byte {
 	w("")
 	w("The JSON is the setup below; percent-encode it (encodeURIComponent). The lab")
 	w("rewrites the address to its own compact form, #s=<base64>, which its \"Copy")
-	w("link\" button gives too. Every field may be left out; what the lab cannot")
-	w("read it skips.")
+	w("link\" button gives too. Every field may be left out. What the lab cannot")
+	w("take it skips and names in a note: an unknown effect, param, kind, episode")
+	w("or preset, a value out of range. An unknown field or broken JSON leaves the")
+	w("link unread.")
 	w("")
 	w("    {")
 	w("      \"preset\": \"Gorizont\",   // with no effects: the preset as it is")
@@ -171,8 +173,16 @@ func generateLLMsText() []byte {
 	w("")
 	w("## Episodes")
 	w("")
-	for _, e := range catalog().Episodes {
-		w("- %s: %s", e.Name, e.Doc)
+	w("An episode moves params of effects for a while; without those effects in")
+	w("the setup it shows nothing.")
+	w("")
+	for _, e := range episodes {
+		episode := e.make()
+		var moves []string
+		for _, target := range episode.Targets {
+			moves = append(moves, string(target.Param))
+		}
+		w("- %s: %s Moves %s.", episode.Name, typeDocs[e.constructor], strings.Join(moves, ", "))
 	}
 	w("")
 	w("## Examples")

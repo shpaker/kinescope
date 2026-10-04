@@ -13,8 +13,10 @@ Library and docs: https://github.com/shpaker/kinescope
 
 The JSON is the setup below; percent-encode it (encodeURIComponent). The lab
 rewrites the address to its own compact form, #s=<base64>, which its "Copy
-link" button gives too. Every field may be left out; what the lab cannot
-read it skips.
+link" button gives too. Every field may be left out. What the lab cannot
+take it skips and names in a note: an unknown effect, param, kind, episode
+or preset, a value out of range. An unknown field or broken JSON leaves the
+link unread.
 
     {
       "preset": "Gorizont",   // with no effects: the preset as it is
@@ -206,11 +208,14 @@ Corners round the picture's corners to the tube's outline.
 
 ## Episodes
 
-- jitter: Jitter tears the lines for a moment, as when the horizontal sync slips.
-- ripple: Ripple is the signal shivering as a channel is switched: the lines tear a little, the grain thickens and snow flickers, all dying out.
-- roll: RollOver slips the picture a whole height down, as when the vertical sync is lost, the blanking bar crossing with it.
-- snow: SnowBurst drowns the picture in snow for a moment.
-- degauss: Degaussing is the coil shaking the mask: the picture wobbles and settles.
+An episode moves params of effects for a while; without those effects in
+the setup it shows nothing.
+
+- jitter: Jitter tears the lines for a moment, as when the horizontal sync slips. Moves tear.strength.
+- ripple: Ripple is the signal shivering as a channel is switched: the lines tear a little, the grain thickens and snow flickers, all dying out. Moves tear.strength, grain.strength, snow.strength.
+- roll: RollOver slips the picture a whole height down, as when the vertical sync is lost, the blanking bar crossing with it. Moves roll.strength.
+- snow: SnowBurst drowns the picture in snow for a moment. Moves snow.strength.
+- degauss: Degaussing is the coil shaking the mask: the picture wobbles and settles. Moves degauss.strength.
 
 ## Examples
 
@@ -226,5 +231,5 @@ A preset on the moving scene, three times as large:
 
 A worn set: reception drifting over 20 s thickens the grain, glitches every 6–14 s:
 
-    {"seed":7,"effects":[{"name":"curvature"},{"name":"scanlines","values":{"scanlines.depth":0.6}},{"name":"grain","values":{"grain.strength":0.05}},{"name":"jitter"},{"name":"ripple"},{"name":"vignette"}],"sources":[{"name":"reception","kind":"drift","period":20}],"drives":[{"from":"reception","to":"grain.strength","weight":0.2}],"schedules":[{"name":"glitches","mean":10,"spread":4,"rate":1,"episodes":["jitter","ripple"]}]}
-    https://shpaker.github.io/kinescope/#j=%7B%22seed%22:7%2C%22effects%22:%5B%7B%22name%22:%22curvature%22%7D%2C%7B%22name%22:%22scanlines%22%2C%22values%22:%7B%22scanlines.depth%22:0.6%7D%7D%2C%7B%22name%22:%22grain%22%2C%22values%22:%7B%22grain.strength%22:0.05%7D%7D%2C%7B%22name%22:%22jitter%22%7D%2C%7B%22name%22:%22ripple%22%7D%2C%7B%22name%22:%22vignette%22%7D%5D%2C%22sources%22:%5B%7B%22name%22:%22reception%22%2C%22kind%22:%22drift%22%2C%22period%22:20%7D%5D%2C%22drives%22:%5B%7B%22from%22:%22reception%22%2C%22to%22:%22grain.strength%22%2C%22weight%22:0.2%7D%5D%2C%22schedules%22:%5B%7B%22name%22:%22glitches%22%2C%22mean%22:10%2C%22spread%22:4%2C%22rate%22:1%2C%22episodes%22:%5B%22jitter%22%2C%22ripple%22%5D%7D%5D%7D
+    {"seed":7,"effects":[{"name":"curvature"},{"name":"scanlines","values":{"scanlines.depth":0.6}},{"name":"grain","values":{"grain.strength":0.05}},{"name":"tear"},{"name":"snow"},{"name":"vignette"}],"sources":[{"name":"reception","kind":"drift","period":20}],"drives":[{"from":"reception","to":"grain.strength","weight":0.2}],"schedules":[{"name":"glitches","mean":10,"spread":4,"rate":1,"episodes":["jitter","ripple"]}]}
+    https://shpaker.github.io/kinescope/#j=%7B%22seed%22:7%2C%22effects%22:%5B%7B%22name%22:%22curvature%22%7D%2C%7B%22name%22:%22scanlines%22%2C%22values%22:%7B%22scanlines.depth%22:0.6%7D%7D%2C%7B%22name%22:%22grain%22%2C%22values%22:%7B%22grain.strength%22:0.05%7D%7D%2C%7B%22name%22:%22tear%22%7D%2C%7B%22name%22:%22snow%22%7D%2C%7B%22name%22:%22vignette%22%7D%5D%2C%22sources%22:%5B%7B%22name%22:%22reception%22%2C%22kind%22:%22drift%22%2C%22period%22:20%7D%5D%2C%22drives%22:%5B%7B%22from%22:%22reception%22%2C%22to%22:%22grain.strength%22%2C%22weight%22:0.2%7D%5D%2C%22schedules%22:%5B%7B%22name%22:%22glitches%22%2C%22mean%22:10%2C%22spread%22:4%2C%22rate%22:1%2C%22episodes%22:%5B%22jitter%22%2C%22ripple%22%5D%7D%5D%7D

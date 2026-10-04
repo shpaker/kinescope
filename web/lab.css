@@ -216,6 +216,7 @@ main > section { min-height: 0; overflow: auto; }
   position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
   background: var(--raised); border: 1px solid var(--line-strong); border-radius: 8px;
   padding: 6px 12px; opacity: 0; transition: opacity .2s; pointer-events: none;
+  max-width: min(640px, calc(100vw - 32px));
 }
 .toast.shown { opacity: 1; }
 #code pre i { font-style: normal; }
