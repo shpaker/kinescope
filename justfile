@@ -43,22 +43,21 @@ lint-wasm:
 test:
     {{gocmd}} test ./...
 
-# Run the lab on the desktop
-lab *args:
-    {{gocmd}} run {{lab}} {{args}}
-
-# Build the lab for the web into dist/
-build-web:
+# Build the lab for the web into dist/; the version it shows is the
+# release tag given, or what git describes
+build-web version="":
     #!/bin/bash
     set -euo pipefail
     rm -rf dist
     mkdir -p dist
-    GOOS=js GOARCH=wasm {{gocmd}} build -trimpath -ldflags "-s -w" -o dist/kinescope-lab.wasm {{lab}}
+    version='{{version}}'
+    version=${version:-$(git describe --tags --always 2>/dev/null || echo dev)}
+    GOOS=js GOARCH=wasm {{gocmd}} build -trimpath -ldflags "-s -w -X main.version=$version" -o dist/kinescope-lab.wasm {{lab}}
     cp "$({{gocmd}} env GOROOT)/lib/wasm/wasm_exec.js" dist/
     cp web/* dist/
     echo "Web build stored in dist/"
 
-# Serve the web build on localhost:8080
+# Serve the lab on localhost:8080
 serve-web: build-web
     python -m http.server 8080 --directory dist
 

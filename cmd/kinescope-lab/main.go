@@ -1,7 +1,9 @@
-// Command kinescope-lab is a lab for kinescope's effects: turn them on and
-// off, move their sliders, give the set moods, and watch a test card, a
-// moving scene or a dropped picture through it. Share the setup as a link
-// or copy it as Go.
+//go:build js
+
+// Command kinescope-lab is a lab for kinescope, built for the browser: make
+// a setup — effects, sources, drives, schedules — watch a test card, a
+// moving scene or a dropped picture through it, tell the TV the game's
+// facts, and take the setup away as Go. The page around it is in web/.
 package main
 
 import (
@@ -9,24 +11,21 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
+	"github.com/shpaker/kinescope/cmd/kinescope-lab/internal/lab"
 	"github.com/shpaker/kinescope/ebitengine"
 )
 
-func main() {
-	p := newPlatform()
-	l, err := newLab(p.State())
-	if err != nil {
-		log.Fatal(err)
-	}
-	r, err := ebitengine.NewRenderer()
-	if err != nil {
-		log.Fatal(err)
-	}
+// version is the library's version, set by the build.
+var version = "dev"
 
-	ebiten.SetWindowTitle("kinescope lab")
-	ebiten.SetWindowSize(1280, 800)
-	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
-	if err := ebiten.RunGame(newGame(l, r, p)); err != nil {
+func main() {
+	renderer, err := ebitengine.NewRenderer()
+	if err != nil {
+		log.Fatal(err)
+	}
+	g := newGame(lab.New(version, ""), renderer)
+	newBridge(g).publish()
+	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}
 }

@@ -5,9 +5,10 @@ afterglow, a bulging glass — and the moods of a worn set: drifting reception,
 torn lines, a shiver when the channel changes. Drawn with
 [Ebitengine](https://ebitengine.org).
 
-**[Try the lab →](https://shpaker.github.io/kinescope/)** — switch effects on
-and off, move their sliders, give the set moods, drop your own screenshot on
-it, then share the setup as a link or copy it as Go.
+**[Try the lab →](https://shpaker.github.io/kinescope/)** — build a setup
+section by section (effects, sources, drives, schedules) or start from a
+preset, drop your own screenshot on it, tell the TV the game's facts, then
+share it as a link or copy it as Go: a `MyTV()` function or a whole game.
 
 **Scope: the screen only.** kinescope draws what the tube's glass shows —
 the picture and its flaws. Whatever is around it (a monitor case, a bezel, a
@@ -77,6 +78,7 @@ tv, err := kinescope.NewTV(setup)
 
 shake, err := tv.Signal("shake") // once; a typo is an error here, not a dead knob in play
 shake.Set(level)                 // whenever the game likes
+reception := tv.SourceValue("reception") // a source's value now, for a meter
 tv.Play(kinescope.Ripple())      // on a change of scene
 tv.Hold(dragging)                // scheduled glitches wait
 
@@ -139,7 +141,7 @@ Presets are named after Soviet sets:
 ```
 kinescope            the core: effects as data, TV, modulation — no engine
 kinescope/ebitengine the Ebitengine backend: Renderer, Kage shaders
-cmd/kinescope-lab    the lab: desktop and web
+cmd/kinescope-lab    the lab, for the browser
 ```
 
 Dependencies point inwards only, checked by depguard: the core knows no
@@ -154,12 +156,13 @@ that the shader's geometry agrees with `TV.Map` pixel for pixel.
 
 ## Lab
 
-```bash
-go run github.com/shpaker/kinescope/cmd/kinescope-lab@latest
-```
+The lab is a web page: [shpaker.github.io/kinescope](https://shpaker.github.io/kinescope/).
+Its sections are a `Setup`'s; the Go panel beside them is the same setup as
+code to paste into a game. To run it locally:
 
-On the desktop, *Copy link* and *Copy as Go* print to the terminal, and
-`-state` takes a printed state back.
+```bash
+just serve-web   # http://localhost:8080
+```
 
 ## License
 

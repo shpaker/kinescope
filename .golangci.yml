@@ -25,15 +25,13 @@ linters-settings:
         deny:
           - pkg: github.com/shpaker/kinescope/cmd
             desc: the backend does not depend on the lab
-          - pkg: github.com/ebitengine/debugui
-            desc: the UI belongs to the lab
       js-isolation:
         files:
           - "**"
-          - "!**/platform_js.go"
+          - "!**/bridge_js.go"
         deny:
           - pkg: syscall/js
-            desc: the browser only behind the lab's platform
+            desc: the browser only in the lab's bridge
 
 linters:
   disable-all: true

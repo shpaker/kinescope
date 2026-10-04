@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>kinescope lab screen</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; color: #8a8a96; font: 13px system-ui, sans-serif; }
+    #loading { position: fixed; inset: 0; display: grid; place-items: center; }
+  </style>
+</head>
+<body>
+  <div id="loading">Warming up the tube…</div>
+  <script src="wasm_exec.js"></script>
+  <script>
+    // The lab's Go: it draws the picture here and puts its model on
+    // window.kinescope for the page around this frame
+    const go = new Go();
+    WebAssembly.instantiateStreaming(fetch("kinescope-lab.wasm"), go.importObject)
+      .then((result) => {
+        document.getElementById("loading").remove();
+        go.run(result.instance);
+      })
+      .catch((err) => {
+        document.getElementById("loading").textContent = "Could not start the lab: " + err;
+      });
+  </script>
+</body>
+</html>

@@ -37,7 +37,9 @@ jobs:
       - uses: extractions/setup-just@v3
 
       - name: Build the lab for the web
-        run: just build-web
+        env:
+          VERSION: ${{ inputs.version }}
+        run: just build-web "$VERSION"
 
       - uses: actions/upload-pages-artifact@v3
         with:
