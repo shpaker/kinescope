@@ -113,6 +113,24 @@ func TestSignalLookup(t *testing.T) {
 	}
 }
 
+func TestSourceValue(t *testing.T) {
+	tv := newTV(t, Setup{
+		Sources: map[string]Source{"shake": Signal{}, "swell": Wave{Period: 4}},
+	})
+	shake, _ := tv.Signal("shake")
+	shake.Set(0.3)
+	run(tv, 2)
+	if got := tv.SourceValue("shake"); got != 0.3 {
+		t.Errorf("shake = %v, want 0.3", got)
+	}
+	if got := tv.SourceValue("swell"); math.Abs(float64(got)-1) > 0.01 {
+		t.Errorf("swell = %v, want 1 at half its period", got)
+	}
+	if got := tv.SourceValue("nope"); got != 0 {
+		t.Errorf("missing source = %v, want 0", got)
+	}
+}
+
 func TestDriveToMissingEffectDoesNothing(t *testing.T) {
 	tv := newTV(t, Setup{
 		Sources: map[string]Source{"shake": Signal{}},
