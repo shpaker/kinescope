@@ -237,6 +237,21 @@ func (tv *TV) Signal(name string) (*Level, error) {
 	return nil, fmt.Errorf("kinescope: no signal %q", name)
 }
 
+// SourceValue is the named source's value now, from 0 to 1: the reception
+// a drift has wandered to, say, for the game to show. It is 0 for a source
+// the setup does not have.
+func (tv *TV) SourceValue(name string) float32 {
+	if tv.stale {
+		tv.modulate()
+	}
+	for _, s := range tv.sources {
+		if s.name == name {
+			return float32(s.value)
+		}
+	}
+	return 0
+}
+
 // Play plays an episode from its start, over whatever is playing.
 func (tv *TV) Play(e Episode) {
 	tv.playing = append(tv.playing, episode{episode: e})
