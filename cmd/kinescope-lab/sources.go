@@ -1,3 +1,5 @@
+//go:build js
+
 package main
 
 import (
@@ -81,6 +83,12 @@ func newTestCard() *testCard {
 	return &testCard{img: img}
 }
 
+var (
+	_ source = (*testCard)(nil)
+	_ source = (*scene)(nil)
+	_ source = (*still)(nil)
+)
+
 func (c *testCard) frame() *ebiten.Image { return c.img }
 func (c *testCard) update()              {}
 
@@ -130,10 +138,10 @@ func (s *scene) update() {
 	}
 }
 
-// picture is an image dropped onto the lab: a game's screenshot, say.
-type picture struct {
+// still is an image dropped onto the lab: a game's screenshot, say.
+type still struct {
 	img *ebiten.Image
 }
 
-func (p *picture) frame() *ebiten.Image { return p.img }
-func (p *picture) update()              {}
+func (s *still) frame() *ebiten.Image { return s.img }
+func (s *still) update()              {}

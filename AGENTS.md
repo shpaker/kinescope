@@ -11,8 +11,9 @@ nothing. depguard (`.golangci.yml`) checks the layers.
 ```
 kinescope            core: effects as data, TV, sources/drives/episodes/schedules, presets
 kinescope/ebitengine backend: Renderer, Kage fragments, composition, prepasses
-cmd/kinescope-lab    the lab: model (lab.go), UI (ui.go), platform (platform_*.go)
-web/                 the lab's page for the web build
+cmd/kinescope-lab    the lab, js/wasm only: model (internal/lab), picture (game.go),
+                     the page's bridge (bridge_js.go)
+web/                 the lab's page: the setup's sections, the picture, the Go code
 ```
 
 Architecture and the right abstractions come first.
@@ -39,12 +40,16 @@ surroundings belong to the game. Outside the picture the shader leaves black.
 
 ## Platforms
 
-The lab builds for the desktop and the web (js/wasm, GitHub Pages); the library must work
-on every platform Ebitengine supports. A change for one platform must not break the others
-or change their behavior.
+The lab is a web page only (js/wasm, GitHub Pages); the library must work on every
+platform Ebitengine supports. A change for one platform must not break the others or
+change their behavior.
 
-- Platform specifics only behind the lab's `platform` interface, with implementations by
-  build tags (`!js` — desktop, `js` — web). `syscall/js` only in `platform_js.go`.
+- The lab's model (`cmd/kinescope-lab/internal/lab`) has no build tags and knows neither
+  Ebitengine nor the browser: it is tested on any OS. Its sections follow `Setup`.
+- The rest of the lab is `//go:build js`; `syscall/js` only in `bridge_js.go`. The page
+  (`web/lab.js`) only draws the model's view and sends commands: logic stays in Go.
+- The lab's Go code must compile and make the lab's TV — `TestGoCodeBuilds` checks.
+  Library docs shown in the lab come from `go generate ./cmd/kinescope-lab/...`.
 - Branching by platform only with build tags; the core and the backend have none.
 - A change for one platform is checked by building and linting every target.
 - No secrets or tokens in the repository, CI or metadata.

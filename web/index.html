@@ -4,24 +4,54 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>kinescope lab</title>
-  <style>
-    html, body { margin: 0; height: 100%; background: #18181c; color: #c8c8d0; font: 14px sans-serif; }
-    #loading { position: fixed; inset: 0; display: grid; place-items: center; }
-  </style>
+  <link rel="stylesheet" href="lab.css">
 </head>
 <body>
-  <div id="loading">Warming up the tube…</div>
-  <script src="wasm_exec.js"></script>
-  <script>
-    const go = new Go();
-    WebAssembly.instantiateStreaming(fetch("kinescope-lab.wasm"), go.importObject)
-      .then((result) => {
-        document.getElementById("loading").remove();
-        go.run(result.instance);
-      })
-      .catch((err) => {
-        document.getElementById("loading").textContent = "Could not start the lab: " + err;
-      });
-  </script>
+  <header>
+    <h1>kinescope lab</h1>
+    <span class="version" id="version"></span>
+    <button class="ghost" id="go-get" title="Copy the go get line">go get</button>
+    <span class="spacer"></span>
+    <label>Preset <select id="preset"></select></label>
+    <label>Seed <input type="number" id="seed" min="0" step="1"></label>
+    <button class="ghost" id="undo" title="Undo (Ctrl+Z)">↶</button>
+    <button class="ghost" id="redo" title="Redo (Ctrl+Shift+Z)">↷</button>
+    <button id="copy-link">Copy link</button>
+  </header>
+  <main>
+    <section id="setup">
+      <div class="section-hint">Starting the lab…</div>
+    </section>
+    <section id="middle">
+      <iframe id="frame" src="screen.html" title="The picture through the TV"></iframe>
+      <div class="strip" id="picture">
+        <label>Picture <select id="source">
+          <option value="0">Test card</option>
+          <option value="1">Moving scene</option>
+          <option value="2">Dropped picture</option>
+        </select></label>
+        <label>Scale <select id="scale">
+          <option value="0">fit</option>
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+          <option>5</option><option>6</option><option>8</option>
+        </select></label>
+        <label><input type="checkbox" id="bypass"> Bypass the TV</label>
+        <span class="empty" id="drop-hint">Drop a picture onto the screen to see it through the TV.</span>
+      </div>
+      <div class="strip" id="game"></div>
+    </section>
+    <section id="code">
+      <div class="tabs">
+        <button id="tab-go" class="on">Go</button>
+        <button id="tab-kage">Kage</button>
+        <span class="spacer"></span>
+        <button class="ghost" id="mode" title="Setup alone, or a whole Ebitengine game">Full example</button>
+        <button id="copy-code">Copy</button>
+      </div>
+      <pre id="listing"></pre>
+    </section>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="lab.js"></script>
 </body>
 </html>
