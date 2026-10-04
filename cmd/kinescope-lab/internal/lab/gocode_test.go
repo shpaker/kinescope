@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"os"
 	"os/exec"
@@ -39,12 +38,12 @@ func TestGoCodeNamesExist(t *testing.T) {
 // must have one, named after its effect and field.
 func TestGoCodeKeyConstantsExist(t *testing.T) {
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, libraryDir, nil, 0)
+	files, err := libraryFiles(fset, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	constants := make(map[string]string)
-	for _, f := range pkgs["kinescope"].Files {
+	for _, f := range files {
 		ast.Inspect(f, func(n ast.Node) bool {
 			spec, ok := n.(*ast.ValueSpec)
 			if !ok || len(spec.Values) != len(spec.Names) {

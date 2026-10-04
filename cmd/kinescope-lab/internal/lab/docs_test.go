@@ -11,6 +11,7 @@ import (
 	"go/token"
 	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -49,15 +50,9 @@ func TestDocs(t *testing.T) {
 // sources and the episodes, and of the effects' fields.
 func generateDocs() ([]byte, error) {
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, libraryDir, func(fi os.FileInfo) bool {
-		return !strings.HasSuffix(fi.Name(), "_test.go")
-	}, parser.ParseComments)
+	files, err := libraryFiles(fset, parser.ParseComments)
 	if err != nil {
 		return nil, err
-	}
-	var files []*ast.File
-	for _, f := range pkgs["kinescope"].Files {
-		files = append(files, f)
 	}
 	pkg, err := doc.NewFromFiles(fset, files, "github.com/shpaker/kinescope")
 	if err != nil {
@@ -132,4 +127,24 @@ func generateDocs() ([]byte, error) {
 func paragraph(text string) string {
 	first, _, _ := strings.Cut(strings.TrimSpace(text), "\n\n")
 	return strings.Join(strings.Fields(first), " ")
+}
+
+// libraryFiles are the library's own Go files, its tests left out.
+func libraryFiles(fset *token.FileSet, mode parser.Mode) ([]*ast.File, error) {
+	names, err := filepath.Glob(filepath.Join(libraryDir, "*.go"))
+	if err != nil {
+		return nil, err
+	}
+	var files []*ast.File
+	for _, name := range names {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, name, nil, mode)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, f)
+	}
+	return files, nil
 }

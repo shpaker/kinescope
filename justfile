@@ -18,7 +18,7 @@ deps:
 
 install-tools:
     {{gocmd}} install golang.org/x/tools/cmd/goimports@latest
-    {{gocmd}} install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
+    {{gocmd}} install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
 
 fmt:
     gofmt -s -w .

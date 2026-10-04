@@ -1,57 +1,65 @@
+version: "2"
+
 run:
   timeout: 5m
   tests: true
 
-linters-settings:
-  goimports:
-    local-prefixes: github.com/shpaker/kinescope
-  misspell:
-    locale: US
-  # Layers: cmd -> ebitengine -> kinescope (see AGENTS.md)
-  depguard:
-    rules:
-      core:
-        files:
-          - "!**/ebitengine/**"
-          - "!**/cmd/**"
-        deny:
-          - pkg: github.com/hajimehoshi/ebiten
-            desc: the core knows no engine; drawing lives in kinescope/ebitengine
-          - pkg: github.com/shpaker/kinescope/ebitengine
-            desc: the core does not depend on its backends
-      backend:
-        files:
-          - "**/ebitengine/**"
-        deny:
-          - pkg: github.com/shpaker/kinescope/cmd
-            desc: the backend does not depend on the lab
-      js-isolation:
-        files:
-          - "**"
-          - "!**/bridge_js.go"
-        deny:
-          - pkg: syscall/js
-            desc: the browser only in the lab's bridge
-
 linters:
-  disable-all: true
+  default: none
   enable:
     - depguard
     - errcheck
-    - gosimple
     - govet
     - ineffassign
+    - misspell
     - staticcheck
     - unused
+  settings:
+    misspell:
+      locale: US
+    # Layers: cmd -> ebitengine -> kinescope (see AGENTS.md)
+    depguard:
+      rules:
+        core:
+          files:
+            - "!**/ebitengine/**"
+            - "!**/cmd/**"
+          deny:
+            - pkg: github.com/hajimehoshi/ebiten
+              desc: the core knows no engine; drawing lives in kinescope/ebitengine
+            - pkg: github.com/shpaker/kinescope/ebitengine
+              desc: the core does not depend on its backends
+        backend:
+          files:
+            - "**/ebitengine/**"
+          deny:
+            - pkg: github.com/shpaker/kinescope/cmd
+              desc: the backend does not depend on the lab
+        js-isolation:
+          files:
+            - "**"
+            - "!**/bridge_js.go"
+          deny:
+            - pkg: syscall/js
+              desc: the browser only in the lab's bridge
+  exclusions:
+    paths:
+      - dist
+      - web
+
+formatters:
+  enable:
     - gofmt
     - goimports
-    - misspell
-    - typecheck
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/shpaker/kinescope
+  exclusions:
+    paths:
+      - dist
+      - web
 
 issues:
-  exclude-use-default: false
-  exclude-dirs:
-    - dist
-    - web
   max-issues-per-linter: 0
   max-same-issues: 0
