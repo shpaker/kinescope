@@ -19,7 +19,7 @@ import (
 //	do(command)     runs a command and returns the view
 //	live()          the values now, the modulation on
 //	state()         the setup as a string for the address
-//	load(state)     takes such a string back and returns the view
+//	load(state)     takes such a string, or the address's j=<JSON>, and returns the view
 type bridge struct {
 	game *game
 
@@ -29,11 +29,12 @@ type bridge struct {
 	revision int
 }
 
-// page is the view the page gets: the lab's, the shader and the picture.
+// page is the view the page gets: the lab's, the shader and whether a
+// picture has been dropped.
 type page struct {
 	lab.View
-	Kage    string  `json:"kage"`
-	Picture picture `json:"picture"`
+	Kage    string `json:"kage"`
+	Dropped bool   `json:"dropped"`
 }
 
 func newBridge(g *game) *bridge {
@@ -77,7 +78,7 @@ func (b *bridge) func1(f func(string) string) js.Func {
 }
 
 func (b *bridge) view() string {
-	p := page{View: b.game.lab.View(), Kage: b.shader(), Picture: b.game.picture}
+	p := page{View: b.game.lab.View(), Kage: b.shader(), Dropped: b.game.dropped()}
 	data, err := json.Marshal(p)
 	if err != nil {
 		log.Print(err)
@@ -86,25 +87,8 @@ func (b *bridge) view() string {
 	return string(data)
 }
 
-// do runs a command: the picture's own, or the lab's.
+// do runs a command of the lab's.
 func (b *bridge) do(command string) string {
-	var head struct {
-		Op string `json:"op"`
-	}
-	if err := json.Unmarshal([]byte(command), &head); err != nil {
-		log.Print(err)
-		return b.view()
-	}
-	if head.Op == "picture" {
-		var p picture
-		if err := json.Unmarshal([]byte(command), &p); err != nil {
-			log.Print(err)
-		}
-		p.Dropped = b.game.picture.Dropped
-		b.game.picture = p
-		b.game.failed = false
-		return b.view()
-	}
 	var c lab.Command
 	if err := json.Unmarshal([]byte(command), &c); err != nil {
 		log.Print(err)

@@ -5,7 +5,7 @@
 //   do(command)     runs a command (JSON) and returns the view
 //   live()          the values now, modulation on: {params: {key: v}, sources: {name: v}}
 //   state()         the setup as a string for the address
-//   load(state)     takes such a string back and returns the view
+//   load(state)     takes such a string, or the address's j=<JSON>, and returns the view
 //
 // This file only draws the view and turns clicks into commands; the view's
 // fields are the Go types' in cmd/kinescope-lab/internal/lab/view.go.
@@ -36,12 +36,20 @@ function connect() {
     return;
   }
   bridge = found;
-  const hash = location.hash.replace(/^#s=/, "");
-  view = JSON.parse(hash ? bridge.load(hash) : bridge.view());
+  view = JSON.parse(location.hash ? bridge.load(location.hash) : bridge.view());
   history.reset(bridge.state());
   render();
   requestAnimationFrame(liveLoop);
 }
+
+// A link opened in the lab's own tab changes only the address: take it as
+// a change. The lab's own address writes do not fire it.
+window.addEventListener("hashchange", () => {
+  if (!bridge || !location.hash) return;
+  view = JSON.parse(bridge.load(location.hash));
+  history.push(bridge.state());
+  render();
+});
 
 // change runs a command that changes the setup: it goes to the history and
 // the address.
@@ -102,7 +110,7 @@ function renderHeader() {
   $("source").value = view.picture.source;
   $("scale").value = view.picture.scale;
   $("bypass").checked = view.picture.bypass;
-  $("drop-hint").hidden = view.picture.dropped;
+  $("drop-hint").hidden = view.dropped;
   $("undo").disabled = history.at <= 0;
   $("redo").disabled = history.at >= history.states.length - 1;
 }
@@ -427,7 +435,8 @@ document.addEventListener("change", (ev) => {
   } else if (t.id === "seed") {
     change({ op: "seed", seed: Number(t.value) });
   } else if (t.id === "source" || t.id === "scale" || t.id === "bypass") {
-    run({ op: "picture", source: Number($("source").value), scale: Number($("scale").value), bypass: $("bypass").checked });
+    const picture = { source: $("source").value, scale: Number($("scale").value), bypass: $("bypass").checked };
+    change({ op: "picture", picture });
   }
 });
 

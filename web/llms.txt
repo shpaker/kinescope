@@ -1,0 +1,230 @@
+# kinescope lab
+
+> kinescope draws the picture of an old tube TV for Go games (Ebitengine).
+> The lab, https://shpaker.github.io/kinescope/, shows a setup — effects, sources, drives,
+> schedules — on a picture and writes it out as Go. A link opens the lab on
+> a setup: write one to show someone a TV.
+
+Library and docs: https://github.com/shpaker/kinescope
+
+## Links
+
+    https://shpaker.github.io/kinescope/#j=<JSON>
+
+The JSON is the setup below; percent-encode it (encodeURIComponent). The lab
+rewrites the address to its own compact form, #s=<base64>, which its "Copy
+link" button gives too. Every field may be left out; what the lab cannot
+read it skips.
+
+    {
+      "preset": "Gorizont",   // with no effects: the preset as it is
+      "seed": 7,              // the randomness of grain, glitches and the like
+      "effects": [            // in stage order; values left out stay at defaults
+        {"name": "scanlines", "values": {"scanlines.depth": 0.6}}
+      ],
+      "sources": [            // values that change by themselves or by the game
+        {"name": "reception", "kind": "drift", "period": 20}
+      ],
+      "drives": [             // weight × the source's value is added to the param
+        {"from": "reception", "to": "grain.strength", "weight": 0.2}
+      ],
+      "schedules": [          // episodes at random intervals: mean ± spread seconds
+        {"name": "glitches", "mean": 10, "spread": 4, "rate": 1, "episodes": ["jitter"]}
+      ],
+      "picture": {"source": "test-card", "scale": 0, "bypass": false}
+    }
+
+Rules:
+
+- A TV has at most one effect in each of the stages read and sample.
+- A param's key is <effect>.<field>; values outside its range are clamped.
+- A drive goes to a param of an effect the setup has, or to rate.<schedule>,
+  which speeds that schedule up or slows it down.
+- Drift and wave sources need a period > 0 in seconds; a signal is a level the
+  game sets (0…1), set by hand under the picture in the lab.
+- A schedule needs mean > 0, 0 ≤ spread < mean and at least one episode;
+  its rate is 1 at the normal speed, and 0, if left out, stops it.
+- An effect whose strength rests at 0 shows only when a drive or an episode
+  moves it.
+
+## Presets
+
+- Gorizont
+- Rubin
+
+## Picture
+
+- source: test-card, scene, dropped (a dropped picture cannot travel in a link: the test card shows)
+- scale: 0, 1, 2, 3, 4, 5, 6, 8 — screen pixels per picture pixel; 0 fits the screen
+- bypass: true shows the picture without the TV
+
+## Effects
+
+By stage, in the order the picture goes through them. Each param: key, range,
+default.
+
+### afterglow (prepass)
+
+Afterglow keeps the phosphor glowing after the beam has passed: bright moving things leave a short trail, the blue one longest.
+
+- afterglow.decay: 0…0.95, default 0.6 — the share of the glow kept from one frame to the next
+
+### power (geometry)
+
+Power squeezes the raster as the tube warms up or dies — a dot, a line, the picture — and flashes the beam. The TV drives it on PowerOn and PowerOff; at rest it is the whole picture.
+
+- power.width: 0…1, default 1 — the raster's width, 1 whole
+- power.height: 0…1, default 1 — the raster's height, 1 whole
+- power.flash: 0…2, default 0 — the beam's flash added to the picture
+
+### curvature (geometry)
+
+Curvature bulges the glass: the picture bows out towards the tube's corners.
+
+- curvature.x: 0…0.25, default 0.035 — bulge across, the stronger the nearer the top and bottom
+- curvature.y: 0…0.25, default 0.045 — bulge down, the stronger the nearer the sides
+
+### degauss (geometry)
+
+Degauss is the degaussing coil shaking the mask: the picture wobbles and settles. Its strength rests at zero and is driven by the Degauss episode.
+
+- degauss.strength: 0…1, default 0
+
+### roll (geometry)
+
+Roll slips the picture down as the vertical sync is lost: Strength is the share of the height it has slipped, the blanking bar crossing with it. It rests at zero and is driven by the Roll episode.
+
+- roll.strength: 0…1, default 0
+
+### tear (geometry)
+
+Tear shifts the lines sideways, as when the set is knocked or the horizontal sync slips: in a running wave, and in bands of lines torn at random. Its strength usually rests at zero and is driven: by a signal such as a shake, or by a glitch.
+
+- tear.strength: 0…1, default 0 — 0 calm, 1 fully torn
+- tear.amplitude: 0…8, default 1.5 — the wave's shift of a line at full strength, in frame pixels
+- tear.bands: 0…32, default 0 — Bands is the shift of the bands torn at random, in frame pixels. They last a moment, so Map leaves them out.
+
+### softness (read)
+
+Softness spreads the beam between neighboring pixels of a line: 0 keeps them square, 1 blends them smoothly. It shows on a screen scaled by a fraction, where square pixels come out uneven.
+
+- softness.amount: 0…1, default 0.35
+
+### convergence (sample)
+
+Convergence puts the red and blue guns out of register: their beams part towards the edges of the screen, and on a worn set drift apart sideways all over it.
+
+- convergence.amount: 0…3, default 0.45 — the parting at the edges, outwards, in frame pixels
+- convergence.offset: 0…3, default 0 — Offset is the sideways drift, red to the right and blue to the left: half of it in the middle, all of it at the edges, in frame pixels.
+
+### glow (light)
+
+Glow bleeds the light of bright areas around them.
+
+- glow.threshold: 0…0.99, default 0.65 — the brightness the glow starts at
+- glow.strength: 0…3, default 0.9 — how much of the glow is added
+- glow.radius: 1…12, default 6 — how far it spreads, in frame pixels
+
+### glass (light)
+
+Glass is the tube's glass catching the room's light: black is never quite black, and a soft reflection sits in the upper left corner.
+
+- glass.level: 0…0.3, default 0.045 — the glass's own light on black
+
+### scanlines (beam)
+
+Scanlines are the beam's lines, one per frame row: dark gaps between them, narrower where the beam is bright and wide.
+
+- scanlines.depth: 0…1, default 0.3 — how dark the gaps get
+- scanlines.min_scale: 1…8, default 3 — MinScale is the screen pixels per frame pixel the lines need: below it they fade out, as too few pixels turn them into moiré.
+
+### interlace (beam)
+
+Interlace draws the lines in two fields taking turns, frame by frame: the lines of the field not drawn fade, and the picture shimmers.
+
+- interlace.strength: 0…1, default 0.3
+- interlace.min_scale: 1…8, default 2 — MinScale is the screen pixels per frame pixel the fields need: below it they fade out.
+
+### aperture_mask (mask)
+
+ApertureMask is the phosphor's red, green and blue stripes, one triad per three screen pixels.
+
+- aperture_mask.strength: 0…1, default 0.3 — how much the stripes show
+- aperture_mask.min_scale: 1…8, default 3 — MinScale is the screen pixels per frame pixel the mask needs: below it the mask fades out.
+
+### slot_mask (mask)
+
+SlotMask is the phosphor of a shadow-mask set: red, green and blue stripes cut by slots, each column of triads half a slot below the last.
+
+- slot_mask.strength: 0…1, default 0.35
+- slot_mask.min_scale: 1…8, default 3 — MinScale is the screen pixels per frame pixel the mask needs: below it the mask fades out.
+
+### grain (post)
+
+Grain is the signal's snow: fine noise, new every frame, seen on black too.
+
+- grain.strength: 0…0.5, default 0.05
+
+### snow (post)
+
+Snow is the screen drowning in snow, as when the signal is lost. Its strength rests at zero and is driven by the Snow episode.
+
+- snow.strength: 0…1, default 0
+
+### flicker (post)
+
+Flicker trembles the whole picture's brightness.
+
+- flicker.strength: 0…0.2, default 0.0075 — the share of brightness the picture trembles by
+- flicker.frequency: 0.1…60, default 22 — trembles per second
+
+### hum (post)
+
+Hum is the mains hum: a bar rolling slowly down the picture, light or dark.
+
+- hum.strength: -0.5…0.5, default 0.025 — how much brighter the bar is; below zero, darker
+- hum.period: 0.5…60, default 8 — seconds the bar takes to cross the picture
+- hum.width: 0.01…1, default 0.05 — the bar's width, in the picture's heights
+
+### vignette (post)
+
+Vignette dims the picture towards its corners.
+
+- vignette.strength: 0…1, default 0.4
+
+### corners (frame)
+
+Corners round the picture's corners to the tube's outline.
+
+- corners.radius: 0…48, default 12 — in frame pixels
+
+## Kinds of sources
+
+- signal: Signal is a level the game sets, frame by frame: a fact of the game, such as the set being shaken. Get its Level with TV.Signal.
+- drift: Drift wanders smoothly and at random between 0 and 1, like the reception of a far station: now clearer, now worse.
+- wave: Wave rises from 0 to 1 and falls back, again and again.
+
+## Episodes
+
+- jitter: Jitter tears the lines for a moment, as when the horizontal sync slips.
+- ripple: Ripple is the signal shivering as a channel is switched: the lines tear a little, the grain thickens and snow flickers, all dying out.
+- roll: RollOver slips the picture a whole height down, as when the vertical sync is lost, the blanking bar crossing with it.
+- snow: SnowBurst drowns the picture in snow for a moment.
+- degauss: Degaussing is the coil shaking the mask: the picture wobbles and settles.
+
+## Examples
+
+A preset as it is:
+
+    {"preset":"Rubin"}
+    https://shpaker.github.io/kinescope/#j=%7B%22preset%22:%22Rubin%22%7D
+
+A preset on the moving scene, three times as large:
+
+    {"preset":"Gorizont","picture":{"source":"scene","scale":3}}
+    https://shpaker.github.io/kinescope/#j=%7B%22preset%22:%22Gorizont%22%2C%22picture%22:%7B%22source%22:%22scene%22%2C%22scale%22:3%7D%7D
+
+A worn set: reception drifting over 20 s thickens the grain, glitches every 6–14 s:
+
+    {"seed":7,"effects":[{"name":"curvature"},{"name":"scanlines","values":{"scanlines.depth":0.6}},{"name":"grain","values":{"grain.strength":0.05}},{"name":"jitter"},{"name":"ripple"},{"name":"vignette"}],"sources":[{"name":"reception","kind":"drift","period":20}],"drives":[{"from":"reception","to":"grain.strength","weight":0.2}],"schedules":[{"name":"glitches","mean":10,"spread":4,"rate":1,"episodes":["jitter","ripple"]}]}
+    https://shpaker.github.io/kinescope/#j=%7B%22seed%22:7%2C%22effects%22:%5B%7B%22name%22:%22curvature%22%7D%2C%7B%22name%22:%22scanlines%22%2C%22values%22:%7B%22scanlines.depth%22:0.6%7D%7D%2C%7B%22name%22:%22grain%22%2C%22values%22:%7B%22grain.strength%22:0.05%7D%7D%2C%7B%22name%22:%22jitter%22%7D%2C%7B%22name%22:%22ripple%22%7D%2C%7B%22name%22:%22vignette%22%7D%5D%2C%22sources%22:%5B%7B%22name%22:%22reception%22%2C%22kind%22:%22drift%22%2C%22period%22:20%7D%5D%2C%22drives%22:%5B%7B%22from%22:%22reception%22%2C%22to%22:%22grain.strength%22%2C%22weight%22:0.2%7D%5D%2C%22schedules%22:%5B%7B%22name%22:%22glitches%22%2C%22mean%22:10%2C%22spread%22:4%2C%22rate%22:1%2C%22episodes%22:%5B%22jitter%22%2C%22ripple%22%5D%7D%5D%7D

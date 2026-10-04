@@ -35,6 +35,9 @@ type View struct {
 	Dark   bool               `json:"dark"`
 	Held   bool               `json:"held"`
 
+	// How the picture is shown
+	Picture Picture `json:"picture"`
+
 	Code CodeView `json:"code"`
 }
 
@@ -125,6 +128,7 @@ func (l *Lab) View() View {
 		Levels:     l.levels,
 		Dark:       l.off,
 		Held:       l.held,
+		Picture:    l.picture,
 		Code:       CodeView{Setup: l.Code(false), Full: l.Code(true)},
 	}
 	l.notice = ""

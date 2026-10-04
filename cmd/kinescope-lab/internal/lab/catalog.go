@@ -1,6 +1,7 @@
 package lab
 
 //go:generate go test -run TestDocs -update .
+//go:generate go test -run TestLLMsText -update .
 
 import (
 	"github.com/shpaker/kinescope"
@@ -65,6 +66,34 @@ var presets = []preset{
 	{"Gorizont", kinescope.Gorizont},
 	{"Rubin", kinescope.Rubin},
 }
+
+// findPreset is a preset by its name, and whether there is one.
+func findPreset(name string) (preset, bool) {
+	for _, p := range presets {
+		if p.name == name {
+			return p, true
+		}
+	}
+	return preset{}, false
+}
+
+// Pictures the lab shows, by Picture.Source: a test card, a moving scene, a
+// picture dropped onto the screen
+const (
+	PictureTestCard = "test-card"
+	PictureScene    = "scene"
+	PictureDropped  = "dropped"
+)
+
+// pictures are the pictures the lab shows, in the order the page lists them.
+var pictures = []string{PictureTestCard, PictureScene, PictureDropped}
+
+// scales are the picture's scales the page offers; 0 fits the screen.
+var scales = []int{0, 1, 2, 3, 4, 5, 6, 8}
+
+// defaultPicture is the picture the lab starts with: the test card, fit to
+// the screen, through the TV.
+var defaultPicture = Picture{Source: PictureTestCard}
 
 // newEffect is a fresh effect by its name, at its defaults, or nil.
 func newEffect(name string) kinescope.Effect {

@@ -3,6 +3,7 @@ package lab
 import (
 	"encoding/base64"
 	"encoding/json"
+	"net/url"
 	"strings"
 
 	"github.com/shpaker/kinescope"
@@ -22,6 +23,7 @@ type state struct {
 	Sources   []source      `json:"sources,omitempty"`
 	Drives    []stateDrive  `json:"drives,omitempty"`
 	Schedules []schedule    `json:"schedules,omitempty"`
+	Picture   *Picture      `json:"picture,omitempty"`
 }
 
 // stateEffect is an effect and its values.
@@ -47,6 +49,7 @@ func (l *Lab) State() string {
 		Effects:   []stateEffect{},
 		Sources:   l.sources,
 		Schedules: l.schedules,
+		Picture:   &l.picture,
 	}
 	for _, e := range l.effects {
 		values := make(map[kinescope.ParamKey]float32)
@@ -62,17 +65,30 @@ func (l *Lab) State() string {
 	return base64.RawURLEncoding.EncodeToString(data)
 }
 
-// Load takes a setup State made. What it cannot read it leaves alone; an
-// effect it does not know it skips.
+// Load takes a setup State made, "s=<base64>", or the same JSON as it is,
+// "j=<JSON>", percent-encoded or not: the form for people and agents who
+// write links by hand. In JSON a missing format is the current one, and a
+// preset with no effects is that preset as it is, on the seed given if any. What Load cannot read it
+// leaves alone; an effect it does not know it skips.
 func (l *Lab) Load(text string) {
-	text = strings.TrimPrefix(strings.TrimPrefix(text, "#"), "s=")
-	data, err := base64.RawURLEncoding.DecodeString(text)
-	if err != nil || len(data) == 0 {
+	s, ok := readState(strings.TrimPrefix(text, "#"))
+	if !ok {
 		return
 	}
-	var s state
-	if err := json.Unmarshal(data, &s); err != nil || s.Format != stateFormat {
-		return
+
+	l.picture = defaultPicture
+	if s.Picture != nil {
+		_ = l.setPicture(s.Picture) // a picture it does not know leaves the default
+	}
+	if len(s.Effects) == 0 {
+		if p, ok := findPreset(s.Preset); ok {
+			l.usePreset(p)
+			if s.Seed != 0 && s.Seed != l.seed {
+				l.seed, l.preset = s.Seed, "" // the preset no more, as with the seed's field
+				l.rebuild()
+			}
+			return
+		}
 	}
 
 	setup := kinescope.Setup{Seed: s.Seed}
@@ -109,4 +125,26 @@ func (l *Lab) Load(text string) {
 	}
 	l.preset = s.Preset
 	l.rebuild()
+}
+
+// readState reads a state in either form, and whether it could.
+func readState(text string) (state, bool) {
+	var s state
+	var data []byte
+	if j, ok := strings.CutPrefix(text, "j="); ok {
+		if unescaped, err := url.PathUnescape(j); err == nil {
+			j = unescaped
+		}
+		s.Format, data = stateFormat, []byte(j)
+	} else {
+		var err error
+		data, err = base64.RawURLEncoding.DecodeString(strings.TrimPrefix(text, "s="))
+		if err != nil {
+			return state{}, false
+		}
+	}
+	if len(data) == 0 || json.Unmarshal(data, &s) != nil || s.Format != stateFormat {
+		return state{}, false
+	}
+	return s, true
 }
