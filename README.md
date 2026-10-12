@@ -1,5 +1,7 @@
 # kinescope
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/shpaker/kinescope.svg)](https://pkg.go.dev/github.com/shpaker/kinescope)
+
 The picture of an old tube TV for Go games: scanlines, a phosphor mask, glow,
 afterglow, a bulging glass — and the moods of a worn set: drifting reception,
 torn lines, a shiver when the channel changes. Drawn with
@@ -22,6 +24,10 @@ room) is the game's business; outside the picture kinescope leaves black.
   the 1999 quest «Новый Робинзон»; the `Rubin` set.
 
 ## Quick start
+
+```sh
+go get github.com/shpaker/kinescope
+```
 
 ```go
 import (
